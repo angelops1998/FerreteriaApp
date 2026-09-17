@@ -1,0 +1,28 @@
+@model Proveedor
+@{
+    ViewData["Title"] = "Eliminar proveedor";
+    var enUso = Model.Productos.Count > 0 || Model.Compras.Count > 0;
+}
+
+<div class="form-auth">
+    <div class="card shadow-sm border-danger">
+        <div class="card-body p-4 text-center">
+            <i class="bi bi-trash text-danger" style="font-size: 3rem;"></i>
+            <h3 class="mt-2">¿Eliminar este proveedor?</h3>
+            <h4>@Model.Nombre</h4>
+            <p class="text-muted">RUC/NIT @Model.Ruc · @Model.Telefono</p>
+            @if (enUso)
+            {
+                <div class="alert alert-warning small">
+                    Este proveedor tiene <strong>@Model.Productos.Count</strong> producto(s) y <strong>@Model.Compras.Count</strong> compra(s) asociadas,
+                    así que <strong>se desactivará</strong> en lugar de eliminarse.
+                </div>
+            }
+            <form asp-action="Delete" method="post">
+                <input type="hidden" asp-for="IdProveedor" />
+                <button type="submit" class="btn btn-danger">Sí, @(enUso ? "desactivar" : "eliminar")</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>

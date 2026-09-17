@@ -1,0 +1,14 @@
+bin/
+obj/
+.git/
+.gitignore
+.vs/
+.vscode/
+.idea/
+*.user
+appsettings.Development.json
+README.md
+INSTRUCTIVO.md
+INSTRUCTIVO.docx
+INSTRUCTIVO.pdf
+docs-src/

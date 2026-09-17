@@ -1,0 +1,61 @@
+@model List<Venta>
+@{
+    ViewData["Title"] = "Gestión de ventas";
+    EstadoVenta? estado = ViewBag.Estado;
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <h2 class="mb-0"><i class="bi bi-receipt"></i> Ventas <small class="text-muted fs-6">(@Model.Count)</small></h2>
+    <div class="d-flex gap-2 flex-wrap">
+        <div class="btn-group">
+            <a asp-action="Manage" class="btn btn-sm @(estado == null ? "btn-dark" : "btn-outline-dark")">Todas</a>
+            @foreach (EstadoVenta s in Enum.GetValues<EstadoVenta>())
+            {
+                <a asp-action="Manage" asp-route-estado="@s" class="btn btn-sm @(estado == s ? "btn-dark" : "btn-outline-dark")">@s</a>
+            }
+        </div>
+        <a asp-action="Registrar" class="btn btn-sm btn-warning"><i class="bi bi-plus-lg"></i> Registrar venta</a>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>N°</th>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th>Empleado</th>
+                    <th>Pago</th>
+                    <th class="text-center">Items</th>
+                    <th class="text-end">Total</th>
+                    <th class="text-center">Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var v in Model)
+                {
+                    <tr>
+                        <td class="fw-bold">#@v.IdVenta</td>
+                        <td>@Formato.Fecha(v.Fecha)</td>
+                        <td>@v.Cliente?.NombreCompleto<br /><small class="text-muted">@v.Cliente?.Email</small></td>
+                        <td class="small">@(v.Empleado?.NombreCompleto ?? "—")</td>
+                        <td class="small">@v.FormaPago?.Nombre</td>
+                        <td class="text-center">@v.Detalles.Sum(d => d.Cantidad)</td>
+                        <td class="text-end">@Formato.Precio(v.Total)</td>
+                        <td class="text-center"><span class="badge @Formato.EstadoBadge(v.Estado)">@v.Estado</span></td>
+                        <td class="text-end">
+                            <a asp-action="Details" asp-route-id="@v.IdVenta" class="btn btn-sm btn-outline-dark">Ver</a>
+                        </td>
+                    </tr>
+                }
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="9" class="text-center text-muted py-4">No hay ventas.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

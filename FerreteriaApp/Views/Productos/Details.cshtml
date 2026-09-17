@@ -1,0 +1,100 @@
+@model Producto
+@{
+    ViewData["Title"] = Model.Nombre;
+    var relacionados = (List<Producto>)ViewBag.Relacionados;
+}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Inicio</a></li>
+        <li class="breadcrumb-item"><a asp-action="Index">Catálogo</a></li>
+        @if (Model.Categoria != null)
+        {
+            <li class="breadcrumb-item"><a asp-action="Index" asp-route-categoriaId="@Model.IdCategoria">@Model.Categoria.Nombre</a></li>
+        }
+        <li class="breadcrumb-item active" aria-current="page">@Model.Nombre</li>
+    </ol>
+</nav>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body p-4">
+        <div class="row g-4">
+            <div class="col-md-5">
+                <img src="@(Model.ImagenUrl ?? "/images/default-product.png")" class="producto-detalle-img border" alt="@Model.Nombre" />
+            </div>
+            <div class="col-md-7">
+                @if (!Model.Estado)
+                {
+                    <span class="badge bg-secondary mb-2">Producto inactivo (solo visible para el personal)</span>
+                }
+                <h2>@Model.Nombre</h2>
+                <p class="text-muted mb-1">
+                    @if (Model.Categoria != null)
+                    {
+                        <span><strong>Categoría:</strong> @Model.Categoria.Nombre</span>
+                    }
+                    @if (Model.Proveedor != null && User.EsPersonal())
+                    {
+                        <span class="ms-3"><strong>Proveedor:</strong> @Model.Proveedor.Nombre</span>
+                    }
+                </p>
+                <p class="display-6 text-precio fw-bold my-3">@Formato.Precio(Model.PrecioVenta)</p>
+                @if (User.EsPersonal())
+                {
+                    <p class="text-muted small mb-2">Precio de compra: @Formato.Precio(Model.PrecioCompra) · Stock mínimo: @Model.StockMinimo</p>
+                }
+                <p>@Model.Descripcion</p>
+
+                @if (Model.Stock > 0)
+                {
+                    <p class="text-success"><i class="bi bi-check-circle-fill"></i> Disponible: <strong>@Model.Stock</strong> unidades</p>
+                    @if (!User.EsPersonal())
+                    {
+                        <form asp-controller="Carrito" asp-action="Agregar" method="post" class="row g-2 align-items-center">
+                            <input type="hidden" name="idProducto" value="@Model.IdProducto" />
+                            <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+                            <div class="col-auto">
+                                <label for="cantidad" class="col-form-label">Cantidad</label>
+                            </div>
+                            <div class="col-auto">
+                                <input type="number" id="cantidad" name="cantidad" class="form-control" value="1" min="1" max="@Model.Stock" style="width: 90px" />
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-warning"><i class="bi bi-cart-plus"></i> Agregar al carrito</button>
+                            </div>
+                        </form>
+                    }
+                }
+                else
+                {
+                    <p class="text-danger"><i class="bi bi-x-circle-fill"></i> Sin stock por el momento</p>
+                }
+
+                <div class="mt-4">
+                    <a asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver al catálogo</a>
+                    @if (User.EsPersonal())
+                    {
+                        <a asp-action="Edit" asp-route-id="@Model.IdProducto" class="btn btn-outline-primary"><i class="bi bi-pencil"></i> Editar</a>
+                    }
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <a asp-action="Delete" asp-route-id="@Model.IdProducto" class="btn btn-outline-danger"><i class="bi bi-trash"></i> Eliminar</a>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (relacionados.Count > 0)
+{
+    <h5 class="mb-3">Productos relacionados</h5>
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-4 g-3">
+        @foreach (var p in relacionados)
+        {
+            <div class="col">
+                <partial name="_ProductoCard" model="p" />
+            </div>
+        }
+    </div>
+}

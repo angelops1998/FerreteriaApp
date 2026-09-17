@@ -1,0 +1,57 @@
+@model EmpleadoViewModel
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<div class="row">
+    <div class="col-md-6 form-group mb-3">
+        <label asp-for="Nombre"></label>
+        <input asp-for="Nombre" class="form-control" autofocus />
+        <span asp-validation-for="Nombre" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 form-group mb-3">
+        <label asp-for="Apellido"></label>
+        <input asp-for="Apellido" class="form-control" />
+        <span asp-validation-for="Apellido" class="text-danger"></span>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6 form-group mb-3">
+        <label asp-for="Email"></label>
+        <input asp-for="Email" class="form-control" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 form-group mb-3">
+        <label asp-for="Password"></label>
+        <input asp-for="Password" class="form-control" />
+        <span asp-validation-for="Password" class="text-danger"></span>
+        <small class="text-muted">@(Model.Id == 0 ? "Mínimo 8 caracteres, con mayúsculas, minúsculas y números." : "Dejar vacío para no cambiarla.")</small>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6 form-group mb-3">
+        <label asp-for="Cargo"></label>
+        <input asp-for="Cargo" class="form-control" placeholder="Vendedor, Cajero, Encargado de depósito..." />
+        <span asp-validation-for="Cargo" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 form-group mb-3">
+        <label asp-for="Telefono"></label>
+        <input asp-for="Telefono" class="form-control" placeholder="Solo números, 8 a 15 dígitos" />
+        <span asp-validation-for="Telefono" class="text-danger"></span>
+    </div>
+</div>
+<div class="form-group mb-3">
+    <label asp-for="Direccion"></label>
+    <input asp-for="Direccion" class="form-control" />
+    <span asp-validation-for="Direccion" class="text-danger"></span>
+</div>
+<div class="row">
+    <div class="col-md-6 form-group mb-3">
+        <label asp-for="Rol"></label>
+        <select asp-for="Rol" class="form-select">
+            <option value="Empleado">Empleado (ventas, compras e inventario)</option>
+            <option value="Admin">Admin (acceso total)</option>
+        </select>
+    </div>
+    <div class="col-md-6 form-group form-check mb-3 mt-4 ms-2">
+        <input asp-for="Estado" class="form-check-input" />
+        <label asp-for="Estado" class="form-check-label"></label>
+    </div>
+</div>

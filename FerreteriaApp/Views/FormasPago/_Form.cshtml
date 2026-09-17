@@ -1,0 +1,16 @@
+@model FormaPago
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<div class="form-group mb-3">
+    <label asp-for="Nombre"></label>
+    <input asp-for="Nombre" class="form-control" autofocus />
+    <span asp-validation-for="Nombre" class="text-danger"></span>
+</div>
+<div class="form-group mb-3">
+    <label asp-for="Descripcion"></label>
+    <input asp-for="Descripcion" class="form-control" />
+    <span asp-validation-for="Descripcion" class="text-danger"></span>
+</div>
+<div class="form-group form-check mb-3">
+    <input asp-for="Estado" class="form-check-input" />
+    <label asp-for="Estado" class="form-check-label"></label>
+</div>

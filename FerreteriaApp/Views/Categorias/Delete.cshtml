@@ -1,0 +1,27 @@
+@model Categoria
+@{
+    ViewData["Title"] = "Eliminar categoría";
+}
+
+<div class="form-auth">
+    <div class="card shadow-sm border-danger">
+        <div class="card-body p-4 text-center">
+            <i class="bi bi-trash text-danger" style="font-size: 3rem;"></i>
+            <h3 class="mt-2">¿Eliminar esta categoría?</h3>
+            <h4>@Model.Nombre</h4>
+            <p class="text-muted">@Model.Descripcion</p>
+            @if (Model.Productos.Count > 0)
+            {
+                <div class="alert alert-warning small">
+                    Hay <strong>@Model.Productos.Count</strong> producto(s) en esta categoría y la categoría es obligatoria
+                    en cada producto, así que <strong>se desactivará</strong> en lugar de eliminarse.
+                </div>
+            }
+            <form asp-action="Delete" method="post">
+                <input type="hidden" asp-for="IdCategoria" />
+                <button type="submit" class="btn btn-danger">Sí, @(Model.Productos.Count > 0 ? "desactivar" : "eliminar")</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>

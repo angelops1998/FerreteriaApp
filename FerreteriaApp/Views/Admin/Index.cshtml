@@ -1,0 +1,164 @@
+@{
+    ViewData["Title"] = "Panel general";
+    var stockBajo = (List<Inventario>)ViewBag.StockBajo;
+    var ultimasVentas = (List<Venta>)ViewBag.UltimasVentas;
+    decimal ingresos = ViewBag.IngresosVentas;
+    decimal gastos = ViewBag.GastosCompras;
+}
+
+<h2 class="mb-4"><i class="bi bi-speedometer2"></i> Panel general</h2>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card stat-card shadow-sm border-0 bg-primary text-white">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-valor">@ViewBag.TotalProductos</div>
+                    <div>Productos</div>
+                </div>
+                <i class="bi bi-box-seam"></i>
+            </div>
+            <a asp-controller="Productos" asp-action="Manage" class="card-footer text-white text-decoration-none small">Administrar <i class="bi bi-arrow-right"></i></a>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card shadow-sm border-0 bg-warning text-dark">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-valor">@ViewBag.TotalVentas</div>
+                    <div>Ventas (@ViewBag.VentasPendientes pendientes)</div>
+                </div>
+                <i class="bi bi-receipt"></i>
+            </div>
+            <a asp-controller="Ventas" asp-action="Manage" class="card-footer text-dark text-decoration-none small">Gestionar <i class="bi bi-arrow-right"></i></a>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card shadow-sm border-0 bg-success text-white">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-valor">@Formato.Precio(ingresos)</div>
+                    <div>Ventas completadas</div>
+                </div>
+                <i class="bi bi-cash-stack"></i>
+            </div>
+            <div class="card-footer small">Compras completadas: @Formato.Precio(gastos)</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card shadow-sm border-0 bg-dark text-white">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-valor">@ViewBag.TotalClientes</div>
+                    <div>Clientes · @ViewBag.TotalEmpleados empleados</div>
+                </div>
+                <i class="bi bi-people"></i>
+            </div>
+            @if (User.IsInRole("Admin"))
+            {
+                <a asp-action="Usuarios" class="card-footer text-white text-decoration-none small">Ver usuarios <i class="bi bi-arrow-right"></i></a>
+            }
+            else
+            {
+                <div class="card-footer small">&nbsp;</div>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white"><i class="bi bi-clock-history"></i> Últimas ventas</div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <tbody>
+                        @foreach (var v in ultimasVentas)
+                        {
+                            <tr>
+                                <td><a asp-controller="Ventas" asp-action="Details" asp-route-id="@v.IdVenta" class="fw-bold text-decoration-none">#@v.IdVenta</a></td>
+                                <td class="small">@Formato.Fecha(v.Fecha)</td>
+                                <td class="small">@v.Cliente?.NombreCompleto</td>
+                                <td class="text-end">@Formato.Precio(v.Total)</td>
+                                <td class="text-center"><span class="badge @Formato.EstadoBadge(v.Estado)">@v.Estado</span></td>
+                            </tr>
+                        }
+                        @if (ultimasVentas.Count == 0)
+                        {
+                            <tr><td class="text-center text-muted py-3">Todavía no hay ventas.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-exclamation-triangle text-warning"></i> Stock en o bajo el mínimo</span>
+                <a asp-controller="Inventario" asp-action="Index" asp-route-soloBajos="true" class="small">Ver inventario</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <tbody>
+                        @foreach (var i in stockBajo)
+                        {
+                            <tr>
+                                <td style="width: 50px"><img src="@(i.Producto?.ImagenUrl ?? "/images/default-product.png")" class="thumb" style="width:40px;height:40px" alt="" /></td>
+                                <td><a asp-controller="Inventario" asp-action="Ajustar" asp-route-id="@i.IdInventario" class="text-decoration-none">@i.Producto?.Nombre</a></td>
+                                <td class="text-center">
+                                    <span class="badge @(i.StockActual == 0 ? "bg-danger" : "bg-warning text-dark")">@i.StockActual / mín. @i.StockMinimo</span>
+                                </td>
+                            </tr>
+                        }
+                        @if (stockBajo.Count == 0)
+                        {
+                            <tr><td class="text-center text-muted py-3">Todo el stock está en orden.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white"><i class="bi bi-trophy"></i> Productos más vendidos</div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr><th>Producto</th><th class="text-center">Unidades</th><th class="text-end">Importe</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in ViewBag.MasVendidos)
+                        {
+                            <tr>
+                                <td>@m.Nombre</td>
+                                <td class="text-center">@m.Cantidad</td>
+                                <td class="text-end">@Formato.Precio((decimal)m.Total)</td>
+                            </tr>
+                        }
+                        @if (((System.Collections.IList)ViewBag.MasVendidos).Count == 0)
+                        {
+                            <tr><td colspan="3" class="text-center text-muted py-3">Todavía no hay ventas.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white"><i class="bi bi-lightning"></i> Accesos rápidos</div>
+            <div class="card-body d-grid gap-2">
+                <a asp-controller="Ventas" asp-action="Registrar" class="btn btn-outline-dark"><i class="bi bi-cash-coin"></i> Registrar venta de mostrador</a>
+                <a asp-controller="Ventas" asp-action="Manage" asp-route-estado="Pendiente" class="btn btn-outline-dark"><i class="bi bi-hourglass-split"></i> Ventas web pendientes (@ViewBag.VentasPendientes)</a>
+                <a asp-controller="Compras" asp-action="Registrar" class="btn btn-outline-dark"><i class="bi bi-truck"></i> Registrar compra a proveedor</a>
+                <a asp-controller="Compras" asp-action="Index" asp-route-estado="Pendiente" class="btn btn-outline-dark"><i class="bi bi-box-arrow-in-down"></i> Compras por recibir (@ViewBag.ComprasPendientes)</a>
+                <a asp-controller="Productos" asp-action="Create" class="btn btn-outline-dark"><i class="bi bi-plus-lg"></i> Nuevo producto</a>
+            </div>
+        </div>
+    </div>
+</div>

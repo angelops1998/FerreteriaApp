@@ -1,0 +1,74 @@
+@model Producto
+@* Campos compartidos por Crear y Editar *@
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<div class="form-group mb-3">
+    <label asp-for="Nombre"></label>
+    <input asp-for="Nombre" class="form-control" />
+    <span asp-validation-for="Nombre" class="text-danger"></span>
+</div>
+<div class="form-group mb-3">
+    <label asp-for="Descripcion"></label>
+    <textarea asp-for="Descripcion" class="form-control" rows="4"></textarea>
+    <span asp-validation-for="Descripcion" class="text-danger"></span>
+</div>
+<div class="row">
+    <div class="col-md-6 form-group mb-3">
+        <label asp-for="IdCategoria"></label>
+        <select asp-for="IdCategoria" asp-items="ViewBag.Categorias" class="form-select">
+            <option value="">-- Elegir categoría --</option>
+        </select>
+        <span asp-validation-for="IdCategoria" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 form-group mb-3">
+        <label asp-for="IdProveedor"></label>
+        <select asp-for="IdProveedor" asp-items="ViewBag.Proveedores" class="form-select">
+            <option value="">-- Elegir proveedor --</option>
+        </select>
+        <span asp-validation-for="IdProveedor" class="text-danger"></span>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-3 form-group mb-3">
+        <label asp-for="PrecioCompra"></label>
+        <div class="input-group">
+            <span class="input-group-text">@Formato.Moneda</span>
+            <input asp-for="PrecioCompra" class="form-control" type="number" step="0.01" min="0.01" />
+        </div>
+        <span asp-validation-for="PrecioCompra" class="text-danger"></span>
+    </div>
+    <div class="col-md-3 form-group mb-3">
+        <label asp-for="PrecioVenta"></label>
+        <div class="input-group">
+            <span class="input-group-text">@Formato.Moneda</span>
+            <input asp-for="PrecioVenta" class="form-control" type="number" step="0.01" min="0.01" />
+        </div>
+        <span asp-validation-for="PrecioVenta" class="text-danger"></span>
+    </div>
+    <div class="col-md-3 form-group mb-3">
+        <label asp-for="Stock"></label>
+        <input asp-for="Stock" class="form-control" type="number" min="0" />
+        <span asp-validation-for="Stock" class="text-danger"></span>
+    </div>
+    <div class="col-md-3 form-group mb-3">
+        <label asp-for="StockMinimo"></label>
+        <input asp-for="StockMinimo" class="form-control" type="number" min="0" />
+        <span asp-validation-for="StockMinimo" class="text-danger"></span>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6 form-group mb-3">
+        <label asp-for="ImagenArchivo"></label>
+        <input asp-for="ImagenArchivo" class="form-control" type="file" accept=".png,.jpg,.jpeg,.webp" />
+        <span asp-validation-for="ImagenArchivo" class="text-danger"></span>
+        <small class="text-muted">PNG, JPG o WEBP, hasta 5 MB.</small>
+    </div>
+    <div class="col-md-6 form-group mb-3">
+        <label asp-for="ImagenUrl"></label>
+        <input asp-for="ImagenUrl" class="form-control" placeholder="O pegá la URL de una imagen" />
+        <small class="text-muted">Si subís un archivo, este campo se ignora.</small>
+    </div>
+</div>
+<div class="form-group form-check mb-3">
+    <input asp-for="Estado" class="form-check-input" />
+    <label asp-for="Estado" class="form-check-label"></label>
+</div>

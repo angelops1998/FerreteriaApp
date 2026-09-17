@@ -1,0 +1,20 @@
+# Blueprint de Render: al conectar el repositorio, Render lee este archivo
+# y crea el servicio web automáticamente (Dashboard → New → Blueprint).
+# También se puede crear el servicio a mano eligiendo "Docker" como runtime.
+services:
+  - type: web
+    name: ferreteria-app
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      # Connection string de Supabase (Session pooler). Se carga desde el panel de Render
+      # en Environment → Add Environment Variable, para no dejarla en el repositorio.
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      # Opcional: contraseña del administrador inicial (si no se define, se usa la de appsettings.json)
+      - key: Admin__Password
+        sync: false

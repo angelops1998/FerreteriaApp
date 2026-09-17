@@ -1,0 +1,145 @@
+@model RegistrarVentaViewModel
+@{
+    ViewData["Title"] = "Registrar venta";
+    var productos = (List<Producto>)ViewBag.Productos;
+}
+
+<h2 class="mb-3"><i class="bi bi-cash-coin"></i> Registrar venta (mostrador)</h2>
+
+<form asp-action="Registrar" method="post" id="formVenta">
+    <div class="card shadow-sm mb-3">
+        <div class="card-body p-4">
+            <div asp-validation-summary="All" class="text-danger"></div>
+            <div class="row">
+                <div class="col-md-6 form-group mb-3">
+                    <label asp-for="IdCliente"></label>
+                    <select asp-for="IdCliente" asp-items="ViewBag.Clientes" class="form-select">
+                        <option value="">-- Elegir cliente --</option>
+                    </select>
+                    <span asp-validation-for="IdCliente" class="text-danger"></span>
+                    <small class="text-muted">Si el cliente no existe, pedile que se registre desde la web.</small>
+                </div>
+                <div class="col-md-6 form-group mb-3">
+                    <label asp-for="IdFormaPago"></label>
+                    <select asp-for="IdFormaPago" asp-items="ViewBag.FormasPago" class="form-select">
+                        <option value="">-- Elegir --</option>
+                    </select>
+                    <span asp-validation-for="IdFormaPago" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="form-group mb-0">
+                <label asp-for="Observaciones"></label>
+                <input asp-for="Observaciones" class="form-control" />
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-box-seam"></i> Productos</span>
+            <button type="button" class="btn btn-sm btn-outline-dark" id="agregarFila"><i class="bi bi-plus-lg"></i> Agregar fila</button>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0" id="tablaItems">
+                <thead class="table-light">
+                    <tr>
+                        <th style="min-width: 280px">Producto</th>
+                        <th class="text-end">Precio</th>
+                        <th class="text-center">Stock</th>
+                        <th style="width: 120px">Cantidad</th>
+                        <th class="text-end">Subtotal</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="filas">
+                    @for (int i = 0; i < Model.Items.Count; i++)
+                    {
+                        <tr>
+                            <td>
+                                <select name="Items[@i].IdProducto" class="form-select form-select-sm sel-producto">
+                                    <option value="0" data-precio="0" data-stock="0">-- Elegir producto --</option>
+                                    @foreach (var p in productos)
+                                    {
+                                        <option value="@p.IdProducto" data-precio="@p.PrecioVenta.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-stock="@p.Stock" selected="@(p.IdProducto == Model.Items[i].IdProducto)">@p.Nombre</option>
+                                    }
+                                </select>
+                            </td>
+                            <td class="text-end precio">-</td>
+                            <td class="text-center stock">-</td>
+                            <td><input type="number" name="Items[@i].Cantidad" value="@Model.Items[i].Cantidad" min="1" class="form-control form-control-sm cantidad" /></td>
+                            <td class="text-end subtotal">-</td>
+                            <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger quitar" title="Quitar"><i class="bi bi-x-lg"></i></button></td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr class="fw-bold fs-5">
+                        <td colspan="4" class="text-end">Total</td>
+                        <td class="text-end text-precio" id="total">@Formato.Moneda 0.00</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-warning"><i class="bi bi-check2-circle"></i> Confirmar venta</button>
+    <a asp-action="Manage" class="btn btn-outline-secondary">Cancelar</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Filas dinámicas: agregar/quitar productos y recalcular subtotales sin recargar la página
+        (function () {
+            const moneda = '@Formato.Moneda';
+            const filas = document.getElementById('filas');
+
+            function fmt(n) { return moneda + ' ' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+            function recalcular() {
+                let total = 0;
+                filas.querySelectorAll('tr').forEach(tr => {
+                    const opt = tr.querySelector('.sel-producto').selectedOptions[0];
+                    const precio = parseFloat(opt.dataset.precio || 0);
+                    const stock = parseInt(opt.dataset.stock || 0);
+                    const cant = tr.querySelector('.cantidad');
+                    const cantidad = parseInt(cant.value || 0);
+                    tr.querySelector('.precio').textContent = precio ? fmt(precio) : '-';
+                    tr.querySelector('.stock').textContent = opt.value !== '0' ? stock : '-';
+                    tr.querySelector('.stock').className = 'text-center stock ' + (opt.value !== '0' && cantidad > stock ? 'text-danger fw-bold' : '');
+                    const sub = precio * cantidad;
+                    tr.querySelector('.subtotal').textContent = precio ? fmt(sub) : '-';
+                    total += sub;
+                });
+                document.getElementById('total').textContent = fmt(total);
+            }
+
+            function reindexar() {
+                filas.querySelectorAll('tr').forEach((tr, i) => {
+                    tr.querySelector('.sel-producto').name = 'Items[' + i + '].IdProducto';
+                    tr.querySelector('.cantidad').name = 'Items[' + i + '].Cantidad';
+                });
+            }
+
+            document.getElementById('agregarFila').addEventListener('click', () => {
+                const nueva = filas.querySelector('tr').cloneNode(true);
+                nueva.querySelector('.sel-producto').selectedIndex = 0;
+                nueva.querySelector('.cantidad').value = 1;
+                filas.appendChild(nueva);
+                reindexar(); recalcular();
+            });
+
+            filas.addEventListener('click', e => {
+                if (e.target.closest('.quitar') && filas.querySelectorAll('tr').length > 1) {
+                    e.target.closest('tr').remove();
+                    reindexar(); recalcular();
+                }
+            });
+
+            filas.addEventListener('change', recalcular);
+            filas.addEventListener('input', recalcular);
+            recalcular();
+        })();
+    </script>
+}

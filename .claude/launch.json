@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ferreteria",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "FerreteriaApp", "--launch-profile", "http"],
+      "port": 5047
+    }
+  ]
+}

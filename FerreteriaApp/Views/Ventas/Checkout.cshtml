@@ -1,0 +1,70 @@
+@model CheckoutViewModel
+@{
+    ViewData["Title"] = "Finalizar compra";
+}
+
+<h2 class="mb-3"><i class="bi bi-bag-check"></i> Finalizar compra</h2>
+
+<form asp-action="Checkout" method="post">
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-3">Datos de la compra</h5>
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                    <div class="alert alert-light border small">
+                        <i class="bi bi-geo-alt"></i> <strong>Entrega en:</strong> @Model.DireccionEntrega
+                        &nbsp;·&nbsp; <i class="bi bi-telephone"></i> @Model.Telefono
+                        <a asp-controller="Account" asp-action="Perfil" class="ms-2">Cambiar</a>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label asp-for="IdFormaPago"></label>
+                        <select asp-for="IdFormaPago" asp-items="ViewBag.FormasPago" class="form-select">
+                            <option value="">-- Elegir --</option>
+                        </select>
+                        <span asp-validation-for="IdFormaPago" class="text-danger"></span>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label asp-for="Observaciones"></label>
+                        <textarea asp-for="Observaciones" class="form-control" rows="3" placeholder="Ej: entregar por la tarde, tocar timbre..."></textarea>
+                        <span asp-validation-for="Observaciones" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Resumen</h5>
+                    <table class="table table-sm align-middle">
+                        <tbody>
+                            @foreach (var item in Model.Items)
+                            {
+                                <tr>
+                                    <td>
+                                        @item.Nombre
+                                        <br /><small class="text-muted">@item.Cantidad x @Formato.Precio(item.PrecioUnitario)</small>
+                                    </td>
+                                    <td class="text-end">@Formato.Precio(item.Subtotal)</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr class="fw-bold fs-5">
+                                <td>Total</td>
+                                <td class="text-end text-precio">@Formato.Precio(Model.Total)</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <button type="submit" class="btn btn-warning w-100"><i class="bi bi-check2-circle"></i> Confirmar compra</button>
+                    <a asp-controller="Carrito" asp-action="Index" class="btn btn-link w-100">Volver al carrito</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

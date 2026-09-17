@@ -1,0 +1,18 @@
+@model Producto
+@{
+    ViewData["Title"] = "Crear producto";
+}
+
+<h2 class="mb-3"><i class="bi bi-plus-circle"></i> Crear producto</h2>
+
+<div class="card shadow-sm">
+    <div class="card-body p-4">
+        <form asp-action="Create" method="post" enctype="multipart/form-data">
+            <partial name="_Form" model="Model" />
+            <button type="submit" class="btn btn-warning">Guardar</button>
+            <a asp-action="Manage" class="btn btn-outline-secondary">Cancelar</a>
+        </form>
+    </div>
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

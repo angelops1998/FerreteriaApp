@@ -1,0 +1,12 @@
+# Compilación
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.vscode/
+.idea/
+*.swp
+
+# Configuración local con credenciales (NO subir a GitHub)
+appsettings.Development.json

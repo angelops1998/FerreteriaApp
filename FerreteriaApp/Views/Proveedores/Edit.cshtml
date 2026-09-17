@@ -1,0 +1,20 @@
+@model Proveedor
+@{
+    ViewData["Title"] = "Editar proveedor";
+}
+
+<div class="form-auth">
+    <h2 class="mb-3"><i class="bi bi-pencil-square"></i> Editar proveedor</h2>
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <form asp-action="Edit" method="post">
+                <input type="hidden" asp-for="IdProveedor" />
+                <partial name="_Form" model="Model" />
+                <button type="submit" class="btn btn-warning">Guardar cambios</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

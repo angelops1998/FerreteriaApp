@@ -1,0 +1,147 @@
+@model RegistrarCompraViewModel
+@{
+    ViewData["Title"] = "Registrar compra";
+    var productos = (List<Producto>)ViewBag.Productos;
+}
+
+<h2 class="mb-3"><i class="bi bi-truck"></i> Registrar compra a proveedor</h2>
+
+<form asp-action="Registrar" method="post">
+    <div class="card shadow-sm mb-3">
+        <div class="card-body p-4">
+            <div asp-validation-summary="All" class="text-danger"></div>
+            <div class="row">
+                <div class="col-md-6 form-group mb-3">
+                    <label asp-for="IdProveedor"></label>
+                    <select asp-for="IdProveedor" asp-items="ViewBag.Proveedores" class="form-select">
+                        <option value="">-- Elegir proveedor --</option>
+                    </select>
+                    <span asp-validation-for="IdProveedor" class="text-danger"></span>
+                </div>
+                <div class="col-md-6 form-group mb-3">
+                    <label asp-for="Observaciones"></label>
+                    <input asp-for="Observaciones" class="form-control" placeholder="N° de factura, condiciones..." />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-box-seam"></i> Productos</span>
+            <button type="button" class="btn btn-sm btn-outline-dark" id="agregarFila"><i class="bi bi-plus-lg"></i> Agregar fila</button>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="min-width: 280px">Producto</th>
+                        <th class="text-center">Stock actual</th>
+                        <th style="width: 120px">Cantidad</th>
+                        <th style="width: 160px">Precio unitario</th>
+                        <th class="text-end">Subtotal</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="filas">
+                    @for (int i = 0; i < Model.Items.Count; i++)
+                    {
+                        <tr>
+                            <td>
+                                <select name="Items[@i].IdProducto" class="form-select form-select-sm sel-producto">
+                                    <option value="0" data-precio="0" data-stock="0">-- Elegir producto --</option>
+                                    @foreach (var p in productos)
+                                    {
+                                        <option value="@p.IdProducto" data-precio="@p.PrecioCompra.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-stock="@p.Stock" selected="@(p.IdProducto == Model.Items[i].IdProducto)">@p.Nombre</option>
+                                    }
+                                </select>
+                            </td>
+                            <td class="text-center stock">-</td>
+                            <td><input type="number" name="Items[@i].Cantidad" value="@Model.Items[i].Cantidad" min="1" class="form-control form-control-sm cantidad" /></td>
+                            <td>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">@Formato.Moneda</span>
+                                    <input type="number" name="Items[@i].PrecioUnitario" value="@(Model.Items[i].PrecioUnitario > 0 ? Model.Items[i].PrecioUnitario.ToString(System.Globalization.CultureInfo.InvariantCulture) : "")" step="0.01" min="0.01" class="form-control precio-unitario" />
+                                </div>
+                            </td>
+                            <td class="text-end subtotal">-</td>
+                            <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger quitar" title="Quitar"><i class="bi bi-x-lg"></i></button></td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr class="fw-bold fs-5">
+                        <td colspan="4" class="text-end">Total</td>
+                        <td class="text-end text-precio" id="total">@Formato.Moneda 0.00</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-warning"><i class="bi bi-check2-circle"></i> Registrar compra</button>
+    <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const moneda = '@Formato.Moneda';
+            const filas = document.getElementById('filas');
+
+            function fmt(n) { return moneda + ' ' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+            function recalcular() {
+                let total = 0;
+                filas.querySelectorAll('tr').forEach(tr => {
+                    const opt = tr.querySelector('.sel-producto').selectedOptions[0];
+                    const precio = parseFloat(tr.querySelector('.precio-unitario').value || 0);
+                    const cantidad = parseInt(tr.querySelector('.cantidad').value || 0);
+                    tr.querySelector('.stock').textContent = opt.value !== '0' ? opt.dataset.stock : '-';
+                    const sub = precio * cantidad;
+                    tr.querySelector('.subtotal').textContent = sub ? fmt(sub) : '-';
+                    total += sub;
+                });
+                document.getElementById('total').textContent = fmt(total);
+            }
+
+            function reindexar() {
+                filas.querySelectorAll('tr').forEach((tr, i) => {
+                    tr.querySelector('.sel-producto').name = 'Items[' + i + '].IdProducto';
+                    tr.querySelector('.cantidad').name = 'Items[' + i + '].Cantidad';
+                    tr.querySelector('.precio-unitario').name = 'Items[' + i + '].PrecioUnitario';
+                });
+            }
+
+            document.getElementById('agregarFila').addEventListener('click', () => {
+                const nueva = filas.querySelector('tr').cloneNode(true);
+                nueva.querySelector('.sel-producto').selectedIndex = 0;
+                nueva.querySelector('.cantidad').value = 1;
+                nueva.querySelector('.precio-unitario').value = '';
+                filas.appendChild(nueva);
+                reindexar(); recalcular();
+            });
+
+            filas.addEventListener('click', e => {
+                if (e.target.closest('.quitar') && filas.querySelectorAll('tr').length > 1) {
+                    e.target.closest('tr').remove();
+                    reindexar(); recalcular();
+                }
+            });
+
+            // Al elegir un producto se propone su último precio de compra
+            filas.addEventListener('change', e => {
+                if (e.target.classList.contains('sel-producto')) {
+                    const tr = e.target.closest('tr');
+                    const precio = e.target.selectedOptions[0].dataset.precio;
+                    if (precio && precio !== '0') tr.querySelector('.precio-unitario').value = precio;
+                }
+                recalcular();
+            });
+            filas.addEventListener('input', recalcular);
+            recalcular();
+        })();
+    </script>
+}

@@ -1,0 +1,100 @@
+@model Venta
+@{
+    ViewData["Title"] = $"Venta #{Model.IdVenta}";
+    var esPersonal = User.EsPersonal();
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="bi bi-receipt"></i> @(esPersonal ? "Venta" : "Compra") #@Model.IdVenta</h2>
+    <span class="badge fs-6 @Formato.EstadoBadge(Model.Estado)">@Model.Estado</span>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th colspan="2">Producto</th>
+                            <th class="text-end">Precio unit.</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-end">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var d in Model.Detalles)
+                        {
+                            <tr>
+                                <td style="width: 70px"><img src="@(d.Producto?.ImagenUrl ?? "/images/default-product.png")" class="thumb" alt="" /></td>
+                                <td>
+                                    <a asp-controller="Productos" asp-action="Details" asp-route-id="@d.IdProducto" class="text-decoration-none">@d.Producto?.Nombre</a>
+                                </td>
+                                <td class="text-end">@Formato.Precio(d.PrecioUnitario)</td>
+                                <td class="text-center">@d.Cantidad</td>
+                                <td class="text-end fw-bold">@Formato.Precio(d.Subtotal)</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr class="fw-bold fs-5">
+                            <td colspan="4" class="text-end">Total</td>
+                            <td class="text-end text-precio">@Formato.Precio(Model.Total)</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Datos</h5>
+                <p class="mb-1"><strong>Fecha:</strong> @Formato.Fecha(Model.Fecha)</p>
+                @if (esPersonal && Model.Cliente != null)
+                {
+                    <p class="mb-1"><strong>Cliente:</strong> @Model.Cliente.NombreCompleto (@Model.Cliente.TipoCliente)<br /><small class="text-muted">@Model.Cliente.Email · @Model.Cliente.Telefono</small></p>
+                    <p class="mb-1"><strong>Dirección:</strong> @Model.Cliente.Direccion</p>
+                }
+                <p class="mb-1"><strong>Forma de pago:</strong> @Model.FormaPago?.Nombre</p>
+                <p class="mb-1"><strong>Atendido por:</strong> @(Model.Empleado?.NombreCompleto ?? "— (compra web pendiente)")</p>
+                @if (!string.IsNullOrEmpty(Model.Observaciones))
+                {
+                    <p class="mb-0"><strong>Observaciones:</strong> @Model.Observaciones</p>
+                }
+            </div>
+        </div>
+
+        @if (esPersonal)
+        {
+            <div class="card shadow-sm mb-3 border-warning">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-gear"></i> Cambiar estado</h5>
+                    <form asp-action="CambiarEstado" method="post" class="d-flex gap-2">
+                        <input type="hidden" name="id" value="@Model.IdVenta" />
+                        <select name="estado" class="form-select">
+                            @foreach (EstadoVenta s in Enum.GetValues<EstadoVenta>())
+                            {
+                                <option value="@s" selected="@(s == Model.Estado)">@s</option>
+                            }
+                        </select>
+                        <button type="submit" class="btn btn-warning text-nowrap">Aplicar</button>
+                    </form>
+                    <small class="text-muted d-block mt-2">
+                        <em>Completada</em> registra al empleado que la cierra. <em>Cancelada</em> y <em>Devuelta</em> devuelven el stock.
+                    </small>
+                </div>
+            </div>
+        }
+        else if (Model.Estado == EstadoVenta.Pendiente)
+        {
+            <form asp-action="Cancelar" method="post" onsubmit="return confirm('¿Seguro que querés cancelar esta compra?');">
+                <input type="hidden" name="id" value="@Model.IdVenta" />
+                <button type="submit" class="btn btn-outline-danger w-100"><i class="bi bi-x-circle"></i> Cancelar compra</button>
+            </form>
+        }
+
+        <a asp-action="@(esPersonal ? "Manage" : "MisCompras")" class="btn btn-outline-secondary w-100 mt-2"><i class="bi bi-arrow-left"></i> Volver</a>
+    </div>
+</div>

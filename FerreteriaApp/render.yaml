@@ -6,7 +6,8 @@ services:
     name: ferreteria-app
     runtime: docker
     plan: free
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./FerreteriaApp/Dockerfile
+    dockerContext: ./FerreteriaApp
     healthCheckPath: /
     envVars:
       - key: ASPNETCORE_ENVIRONMENT

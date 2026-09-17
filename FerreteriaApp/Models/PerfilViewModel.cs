@@ -8,10 +8,14 @@ namespace FerreteriaApp.Models
         [Display(Name = "Email")]
         public string Email { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "El nombre es obligatorio"), MaxLength(100), Display(Name = "Nombre")]
+        [Required(ErrorMessage = "El nombre es obligatorio"), MaxLength(100)]
+        [RegularExpression(@"^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]+$", ErrorMessage = "El nombre solo puede contener letras")]
+        [Display(Name = "Nombre")]
         public string Nombre { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "El apellido es obligatorio"), MaxLength(100), Display(Name = "Apellido")]
+        [Required(ErrorMessage = "El apellido es obligatorio"), MaxLength(100)]
+        [RegularExpression(@"^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]+$", ErrorMessage = "El apellido solo puede contener letras")]
+        [Display(Name = "Apellido")]
         public string Apellido { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "El teléfono es obligatorio")]

@@ -38,6 +38,14 @@ detalle y forma de pago, y compras a proveedores con detalle.
   stock y actualiza el precio de compra). No se permite cancelar una compra si dejaría stock negativo.
 - **Inventario**: stock actual, mínimo, última actualización, filtro "bajo mínimo" y ajuste manual.
 - Crear y editar **productos** (con subida de imagen).
+- **Reportes** (menú Gestión → Reportes), todos con **gráficos** (Chart.js), filtros por **fecha** y
+  botones **Descargar PDF** (imprimir → "Guardar como PDF") y **Exportar CSV** (Excel):
+  - **Ventas**: por período, estado y forma de pago; evolución por día, por empleado y por estado.
+  - **Compras a proveedores**: por período, estado y proveedor.
+  - **Stock e inventario**: stock valorizado a costo y a venta, por categoría, bajo mínimo y sin stock.
+  - **Productos vendidos**: ranking por unidades, ingresos o ganancia estimada, e ingresos vs. costo.
+  - **Usuarios**: administradores, empleados y clientes; rol, estado, altas por mes y compras de cada cliente.
+  - **Resumen financiero**: ventas cobradas vs. compras pagadas, mes a mes.
 
 ### Administrador (rol `Admin`)
 - Todo lo del empleado, más: **categorías**, **proveedores**, **formas de pago**, eliminar productos,
@@ -88,7 +96,8 @@ FerreteriaApp/
 │   ├── VentasController.cs        Checkout web, mis compras, venta de mostrador, gestión de estados
 │   ├── ComprasController.cs       Compras a proveedores y su ingreso al stock
 │   ├── InventarioController.cs    Inventario y ajustes manuales
-│   └── AdminController.cs         Panel general, usuarios y empleados
+│   ├── AdminController.cs         Panel general, usuarios y empleados
+│   └── ReportesController.cs      Reportes (ventas, compras, inventario, productos, clientes, financiero) + CSV
 ├── Models/
 │   ├── Usuario.cs                 Base de Identity (int) + nombre, apellido, estado, fechaCreacion
 │   ├── Rol.cs                     Rol de Identity (int) + descripción
@@ -97,19 +106,23 @@ FerreteriaApp/
 │   ├── Venta.cs (+ enum EstadoVenta), DetalleVenta.cs
 │   ├── Compra.cs (+ enum EstadoCompra), DetalleCompra.cs
 │   ├── CarritoItem.cs             Ítem del carrito (en sesión)
-│   └── *ViewModel.cs              Formularios (login, registro, perfil, checkout, venta, compra, empleado)
+│   ├── *ViewModel.cs              Formularios (login, registro, perfil, checkout, venta, compra, empleado)
+│   └── Reporte*ViewModel.cs, ResumenFila.cs   Datos que muestra cada reporte (ventas, compras, stock, productos, usuarios, financiero)
 ├── Data/
 │   ├── ApplicationDbContext.cs    Único DbContext (Identity + tablas de la ferretería)
 │   └── DbInitializer.cs           Seed: roles, admin, vendedor, formas de pago, categorías, proveedores, productos, inventario
 ├── Helpers/
-│   ├── Formato.cs                 Precios, fechas y colores de estado
+│   ├── Formato.cs                 Precios, fechas (UTC ↔ hora local) y colores de estado
+│   ├── Csv.cs                     Genera los archivos CSV de los reportes
 │   ├── CarritoSesion.cs           Leer/guardar el carrito en la sesión
 │   ├── UsuarioExtensions.cs       Id numérico del usuario logueado, EsPersonal()
 │   └── SpanishIdentityErrorDescriber.cs   Mensajes de Identity en español
 ├── Migrations/                    Migraciones de EF Core (ya generadas)
-├── Views/                         Vistas Razor (Home, Account, Productos, Categorias, Proveedores, FormasPago, Carrito, Ventas, Compras, Inventario, Admin, Shared)
+├── Views/                         Vistas Razor (Home, Account, Productos, Categorias, Proveedores, FormasPago, Carrito, Ventas, Compras, Inventario, Admin, Reportes, Shared)
 ├── wwwroot/
-│   ├── css/site.css               Estilos propios
+│   ├── css/site.css               Estilos propios (incluye los estilos de impresión de los reportes)
+│   ├── js/reportes.js             Gráficos de los reportes (Chart.js) e impresión a PDF
+│   ├── lib/chart.js/              Chart.js (librería de gráficos)
 │   └── images/productos/          Imágenes de los productos
 ├── appsettings.json               Configuración (connection string, nombre de la tienda, admin)
 ├── Program.cs

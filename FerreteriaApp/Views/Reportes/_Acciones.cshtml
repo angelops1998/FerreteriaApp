@@ -1,0 +1,18 @@
+@using Microsoft.Extensions.Primitives
+@{
+    // Misma URL del reporte (con sus filtros) más ?formato=csv para descargar el archivo
+    var pares = Context.Request.Query.Where(q => !q.Key.Equals("formato", StringComparison.OrdinalIgnoreCase)).ToList();
+    pares.Add(new KeyValuePair<string, StringValues>("formato", "csv"));
+    var urlCsv = Context.Request.Path + QueryString.Create(pares).ToUriComponent();
+
+    // Nombre que el navegador propone al guardar el PDF (lo define cada vista)
+    var archivo = ViewData["Archivo"] as string ?? "reporte";
+}
+<div class="btn-group d-print-none">
+    <button type="button" class="btn btn-sm btn-danger" onclick="reportes.imprimir('@archivo')"
+            title="Abre el diálogo de impresión: elegí &quot;Guardar como PDF&quot; para descargarlo">
+        <i class="bi bi-file-earmark-pdf"></i> Descargar PDF
+    </button>
+    <a href="@urlCsv" class="btn btn-sm btn-outline-success" title="Descargar en formato CSV (se abre con Excel)"><i class="bi bi-file-earmark-spreadsheet"></i> Exportar CSV</a>
+    <a asp-action="Index" class="btn btn-sm btn-outline-secondary"><i class="bi bi-grid"></i> Todos los reportes</a>
+</div>

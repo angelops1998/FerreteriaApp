@@ -61,6 +61,14 @@ detalle y forma de pago, y compras a proveedores con detalle.
   stock y actualiza el precio de compra). No se permite cancelar una compra si dejaría stock negativo.
 - **Inventario**: stock actual, mínimo, última actualización, filtro "bajo mínimo" y ajuste manual.
 - Crear y editar **productos** (con subida de imagen).
+- **Reportes** (menú Gestión → Reportes), todos con **gráficos** (Chart.js), filtros por **fecha** y
+  botones **Descargar PDF** (imprimir → "Guardar como PDF") y **Exportar CSV** (Excel):
+  - **Ventas**: por período, estado y forma de pago; evolución por día, por empleado y por estado.
+  - **Compras a proveedores**: por período, estado y proveedor.
+  - **Stock e inventario**: stock valorizado a costo y a venta, por categoría, bajo mínimo y sin stock.
+  - **Productos vendidos**: ranking por unidades, ingresos o ganancia estimada, e ingresos vs. costo.
+  - **Usuarios**: administradores, empleados y clientes; rol, estado, altas por mes y compras de cada cliente.
+  - **Resumen financiero**: ventas cobradas vs. compras pagadas, mes a mes.
 
 ### Administrador (rol `Admin`)
 - Todo lo del empleado, más: **categorías**, **proveedores**, **formas de pago**, eliminar productos,
@@ -370,7 +378,8 @@ FerreteriaApp/
 │   ├── VentasController.cs        Checkout web, mis compras, venta de mostrador, gestión de estados
 │   ├── ComprasController.cs       Compras a proveedores y su ingreso al stock
 │   ├── InventarioController.cs    Inventario y ajustes manuales
-│   └── AdminController.cs         Panel general, usuarios y empleados
+│   ├── AdminController.cs         Panel general, usuarios y empleados
+│   └── ReportesController.cs      Reportes (ventas, compras, inventario, productos, clientes, financiero) + CSV
 ├── Models/
 │   ├── Usuario.cs                 Base de Identity (int) + nombre, apellido, estado, fechaCreacion
 │   ├── Rol.cs                     Rol de Identity (int) + descripción
@@ -379,19 +388,23 @@ FerreteriaApp/
 │   ├── Venta.cs (+ enum EstadoVenta), DetalleVenta.cs
 │   ├── Compra.cs (+ enum EstadoCompra), DetalleCompra.cs
 │   ├── CarritoItem.cs             Ítem del carrito (en sesión)
-│   └── *ViewModel.cs              Formularios (login, registro, perfil, checkout, venta, compra, empleado)
+│   ├── *ViewModel.cs              Formularios (login, registro, perfil, checkout, venta, compra, empleado)
+│   └── Reporte*ViewModel.cs, ResumenFila.cs   Datos que muestra cada reporte (ventas, compras, stock, productos, usuarios, financiero)
 ├── Data/
 │   ├── ApplicationDbContext.cs    Único DbContext (Identity + tablas de la ferretería)
 │   └── DbInitializer.cs           Seed: roles, admin, vendedor, formas de pago, categorías, proveedores, productos, inventario
 ├── Helpers/
-│   ├── Formato.cs                 Precios, fechas y colores de estado
+│   ├── Formato.cs                 Precios, fechas (UTC ↔ hora local) y colores de estado
+│   ├── Csv.cs                     Genera los archivos CSV de los reportes
 │   ├── CarritoSesion.cs           Leer/guardar el carrito en la sesión
 │   ├── UsuarioExtensions.cs       Id numérico del usuario logueado, EsPersonal()
 │   └── SpanishIdentityErrorDescriber.cs   Mensajes de Identity en español
 ├── Migrations/                    Migraciones de EF Core (ya generadas)
-├── Views/                         Vistas Razor (Home, Account, Productos, Categorias, Proveedores, FormasPago, Carrito, Ventas, Compras, Inventario, Admin, Shared)
+├── Views/                         Vistas Razor (Home, Account, Productos, Categorias, Proveedores, FormasPago, Carrito, Ventas, Compras, Inventario, Admin, Reportes, Shared)
 ├── wwwroot/
-│   ├── css/site.css               Estilos propios
+│   ├── css/site.css               Estilos propios (incluye los estilos de impresión de los reportes)
+│   ├── js/reportes.js             Gráficos de los reportes (Chart.js) e impresión a PDF
+│   ├── lib/chart.js/              Chart.js (librería de gráficos)
 │   └── images/productos/          Imágenes de los productos
 ├── appsettings.json               Configuración (connection string, nombre de la tienda, admin)
 ├── Program.cs
@@ -581,6 +594,27 @@ Formularios con **varias filas** de productos: `Items` es una lista y cada fila 
 
 {{FILE:Models/ErrorViewModel.cs:csharp}}
 
+### ViewModels de reportes: `ResumenFila.cs` y `Reporte*ViewModel.cs`
+
+Cada reporte tiene su propio ViewModel: guarda los **filtros** elegidos (fechas, estado,
+categoría...), la **lista de datos** que se muestra y **propiedades calculadas** (totales, promedios)
+que se resuelven con LINQ sobre esa lista. `ResumenFila` es una línea genérica de desglose
+("Efectivo — 12 ventas — Bs 1.540,00") que usan varios reportes.
+
+{{FILE:Models/ResumenFila.cs:csharp}}
+
+{{FILE:Models/ReporteVentasViewModel.cs:csharp}}
+
+{{FILE:Models/ReporteComprasViewModel.cs:csharp}}
+
+{{FILE:Models/ReporteInventarioViewModel.cs:csharp}}
+
+{{FILE:Models/ReporteProductosViewModel.cs:csharp}}
+
+{{FILE:Models/ReporteUsuariosViewModel.cs:csharp}}
+
+{{FILE:Models/ReporteFinancieroViewModel.cs:csharp}}
+
 ## 3.11 Cómo quedan las tablas (relaciones)
 
 ```
@@ -665,7 +699,17 @@ Detalles:
 
 - `Precio(decimal)`: siempre usa punto decimal y separador de miles, con el símbolo configurado.
 - `Fecha(DateTime)`: convierte la fecha UTC guardada en la base a la zona horaria de la tienda.
+- `ALocal` / `AUtc`: pasan una fecha de UTC a hora local y al revés. Los reportes las usan para que
+  "del 1 al 30" signifique días completos en la hora de la tienda, aunque la base guarde UTC.
 - `EstadoBadge(...)`: color de la etiqueta Bootstrap para cada estado de venta o de compra.
+
+## 5.1b `Helpers/Csv.cs` — exportar a Excel
+
+{{FILE:Helpers/Csv.cs:csharp}}
+
+Un CSV es un archivo de texto con una fila por línea y las columnas separadas por un carácter (acá
+`;`). Excel lo abre directo. La primera línea `sep=;` le dice a Excel qué separador usar y el BOM
+UTF-8 hace que muestre bien los acentos. No hace falta ningún paquete NuGet.
 
 ## 5.2 `Helpers/CarritoSesion.cs` — el carrito en la sesión
 
@@ -866,6 +910,34 @@ necesita forma de pago), si están en uso **se desactivan** en lugar de borrarse
 - **CambiarTipoCliente**: Regular ↔ Mayorista.
 - **CrearEmpleado / EditarEmpleado**: alta y edición de empleados (con contraseña y rol). En la
   edición, la contraseña se cambia solo si se escribe una nueva (`ResetPasswordAsync` con token).
+
+## 7.10 `Controllers/ReportesController.cs` — reportes
+
+{{FILE:Controllers/ReportesController.cs:csharp}}
+
+Todas las acciones siguen el mismo patrón:
+
+1. **Leer los filtros** de la URL (`?desde=...&hasta=...&estado=...`). `RangoFechas` completa los
+   que faltan (por defecto: el mes actual) y devuelve los límites en UTC para comparar con la base.
+2. **Consultar** con EF Core aplicando los filtros (`Where`) y trayendo las relaciones necesarias
+   (`Include`).
+3. **Calcular los desgloses en memoria** con LINQ (`GroupBy` + `Sum`) mediante `Agrupar` y
+   `AgruparPorDia`. Se hace en memoria porque las listas ya están cargadas para la tabla de detalle.
+4. Si la URL trae `formato=csv`, devolver un **archivo** (`File(...)`) en vez de la vista. Por eso
+   el botón "Exportar CSV" es simplemente un enlace a la misma URL con ese parámetro.
+
+Reportes disponibles:
+
+- **Ventas**: por rango de fechas, estado y forma de pago. Desglose por estado, forma de pago,
+  empleado y día. Ticket promedio.
+- **Compras**: por rango de fechas, estado y proveedor. Desglose por proveedor, empleado y día.
+- **Inventario**: stock de cada producto valorizado a precio de compra y de venta, por categoría,
+  con filtro "solo bajo el mínimo" e "incluir inactivos".
+- **Productos**: ranking de vendidos (por unidades, ingresos o ganancia), costo estimado con el
+  precio de compra actual, margen, y lista de productos activos que no se vendieron.
+- **Usuarios**: administradores, empleados y clientes, con su rol, estado y fecha de alta; para los
+  clientes, las compras que hicieron en el período.
+- **Financiero**: ventas completadas vs. compras completadas mes a mes, para un año.
 
 ---
 
@@ -1068,6 +1140,53 @@ para que ASP.NET arme la lista, y calcula subtotales y total en vivo con los `da
 
 {{FILE:Views/Admin/EditarEmpleado.cshtml:cshtml}}
 
+## 8.12b Vistas de reportes (`Views/Reportes/`)
+
+Las vistas de reportes comparten cuatro **parciales** para no repetir código:
+
+- `_Acciones.cshtml`: botones "Exportar CSV" (misma URL + `formato=csv`), "Imprimir / PDF"
+  (`window.print()`) y volver al índice.
+- `_EncabezadoImpresion.cshtml`: encabezado con el nombre de la tienda y los filtros, que solo
+  aparece al imprimir (`d-none d-print-block`).
+- `_RangosRapidos.cshtml`: atajos "Hoy / Esta semana / Este mes / Este año / Todo" que arman la URL
+  con `desde` y `hasta` sin perder los otros filtros.
+- `_Resumen.cshtml`: tabla chica de desglose (nombre, cantidad, total) para una lista de
+  `ResumenFila`; los títulos se pasan por `ViewData`.
+
+Los formularios de filtro usan `method="get"`, así los filtros quedan en la URL y se pueden compartir
+o imprimir. Al imprimir, el CSS `@media print` de `site.css` oculta menú, pie y botones.
+
+{{FILE:Views/Reportes/_Acciones.cshtml:cshtml}}
+
+{{FILE:Views/Reportes/_EncabezadoImpresion.cshtml:cshtml}}
+
+{{FILE:Views/Reportes/_RangosRapidos.cshtml:cshtml}}
+
+{{FILE:Views/Reportes/_Resumen.cshtml:cshtml}}
+
+{{FILE:Views/Reportes/_Grafico.cshtml:cshtml}}
+
+{{FILE:Views/Reportes/_Graficos.cshtml:cshtml}}
+
+Los gráficos se dibujan con **Chart.js** (`wwwroot/lib/chart.js/`). Cada vista le pasa los datos ya
+calculados por el controlador a las funciones de `wwwroot/js/reportes.js`:
+
+{{FILE:wwwroot/js/reportes.js:javascript}}
+
+{{FILE:Views/Reportes/Index.cshtml:cshtml}}
+
+{{FILE:Views/Reportes/Ventas.cshtml:cshtml}}
+
+{{FILE:Views/Reportes/Compras.cshtml:cshtml}}
+
+{{FILE:Views/Reportes/Inventario.cshtml:cshtml}}
+
+{{FILE:Views/Reportes/Productos.cshtml:cshtml}}
+
+{{FILE:Views/Reportes/Usuarios.cshtml:cshtml}}
+
+{{FILE:Views/Reportes/Financiero.cshtml:cshtml}}
+
 ## 8.13 `wwwroot/css/site.css` — estilos propios
 
 {{FILE:wwwroot/css/site.css:css}}
@@ -1208,15 +1327,18 @@ en **Gestión → Usuarios y empleados**.
     "no puede quedar negativo".
 14. **Inventario**: filtrar "Bajo mínimo", **ajustar** el stock de un producto tras un recuento.
 15. **Productos**: crear uno nuevo (con categoría, proveedor, precios, stock, imagen) y editarlo.
-16. Intentar entrar a **Categorías** o **Usuarios**: *Acceso denegado* (son solo de Admin).
+16. **Reportes**: abrir *Ventas* con el atajo "Todo", cambiar filtros, **Exportar CSV** (abrirlo en
+    Excel) e **Imprimir / PDF**. Revisar *Inventario valorizado*, *Productos vendidos* (ganancia
+    estimada) y *Resumen financiero* del año.
+17. Intentar entrar a **Categorías** o **Usuarios**: *Acceso denegado* (son solo de Admin).
 
 **Como administrador** (`juan@gmail.com` / `Juan1234`)
 
-17. **Categorías**, **Proveedores** y **Formas de pago**: crear, editar y "eliminar" una que esté en
+18. **Categorías**, **Proveedores** y **Formas de pago**: crear, editar y "eliminar" una que esté en
     uso (se desactiva; una categoría desactivada oculta sus productos del catálogo).
-18. **Usuarios y empleados**: crear un empleado, hacerlo Admin y volver a Empleado, desactivar al
+19. **Usuarios y empleados**: crear un empleado, hacerlo Admin y volver a Empleado, desactivar al
     cliente registrado (ya no puede iniciar sesión) y reactivarlo, cambiarlo a Mayorista.
-19. **Eliminar producto**: uno sin movimientos se borra (con su inventario); uno vendido se desactiva.
+20. **Eliminar producto**: uno sin movimientos se borra (con su inventario); uno vendido se desactiva.
 
 ---
 
@@ -1424,6 +1546,21 @@ timeout; el pooler tiene IPv4 y administra las conexiones.
 
 **¿Por qué `DateTime.UtcNow`?** El servidor de Render está en otra zona horaria; se guarda en UTC y
 se convierte a la hora local solo al mostrar (`Formato.Fecha`).
+
+**¿Cómo funcionan los reportes?** Cada reporte es una acción de `ReportesController` que lee los
+filtros de la URL, consulta con EF Core y calcula totales y desgloses con LINQ (`GroupBy`, `Sum`).
+Los resultados van a un ViewModel (`ReporteVentasViewModel`, etc.) que la vista muestra. No hay
+tablas nuevas: los reportes solo leen las que ya existen.
+
+**¿Cómo se exporta a Excel sin paquetes extra?** Generando un **CSV** (`Helpers/Csv.cs`): texto plano
+con una fila por línea y `;` entre columnas, que Excel abre directo. La misma acción devuelve la vista
+o el archivo según llegue `?formato=csv`. Para PDF se usa "Imprimir" del navegador con estilos
+`@media print` que ocultan menú y botones.
+
+**¿Por qué los filtros de fecha convierten a UTC?** Porque la base guarda UTC, pero el usuario piensa
+en días de su zona horaria. `Formato.AUtc` convierte "desde el 1/9 a las 00:00 hora local" al
+instante UTC correspondiente, y el límite superior es el inicio del día siguiente (`< finUtc`) para
+que el día "hasta" entre completo.
 
 ---
 

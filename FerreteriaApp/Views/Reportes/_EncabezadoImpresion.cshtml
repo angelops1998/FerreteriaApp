@@ -1,0 +1,7 @@
+@model string
+@inject IConfiguration config
+@* Solo se ve al imprimir: nombre de la tienda, título del reporte, filtros aplicados y fecha de generación *@
+<div class="d-none d-print-block mb-3 pb-2 border-bottom">
+    <h4 class="mb-0"><i class="bi bi-tools"></i> @(config["Tienda:Nombre"] ?? "Ferretería") — @ViewData["Title"]</h4>
+    <div class="small text-muted">@Model &nbsp;·&nbsp; Generado el @Formato.Fecha(DateTime.UtcNow)</div>
+</div>

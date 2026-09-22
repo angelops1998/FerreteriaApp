@@ -1,0 +1,162 @@
+@model ReporteUsuariosViewModel
+@{
+    ViewData["Title"] = "Reporte de usuarios";
+    ViewData["Archivo"] = $"usuarios_{Model.Desde:yyyyMMdd}_{Model.Hasta:yyyyMMdd}";
+    var rango = $"Del {Model.Desde:dd/MM/yyyy} al {Model.Hasta:dd/MM/yyyy}"
+        + (!string.IsNullOrEmpty(Model.Rol) ? $" · Rol: {Model.Rol}" : "")
+        + (Model.Activo.HasValue ? (Model.Activo.Value ? " · Solo activos" : " · Solo inactivos") : "")
+        + (Model.SoloNuevos ? " · Solo altas del período" : "");
+
+    var roles = new List<SelectListItem> { new("Admin", "Admin"), new("Empleado", "Empleado"), new("Cliente", "Cliente") };
+    var estados = new List<SelectListItem> { new("Activos", "true"), new("Inactivos", "false") };
+
+    // Datos para los gráficos
+    var topClientes = Model.MejoresClientes.Take(10).ToList();
+}
+
+<partial name="_EncabezadoImpresion" model="rango" />
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 d-print-none">
+    <h2 class="mb-0"><i class="bi bi-people"></i> Reporte de usuarios</h2>
+    <partial name="_Acciones" />
+</div>
+
+<form method="get" class="card shadow-sm mb-4 d-print-none">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-6 col-md-2">
+                <label asp-for="Desde" class="form-label mb-1"></label>
+                <input asp-for="Desde" class="form-control form-control-sm" name="desde" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label asp-for="Hasta" class="form-label mb-1"></label>
+                <input asp-for="Hasta" class="form-control form-control-sm" name="hasta" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label asp-for="Rol" class="form-label mb-1"></label>
+                <select asp-for="Rol" name="rol" class="form-select form-select-sm" asp-items="roles">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label asp-for="Activo" class="form-label mb-1"></label>
+                <select asp-for="Activo" name="activo" class="form-select form-select-sm" asp-items="estados">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="form-check">
+                    <input asp-for="SoloNuevos" name="soloNuevos" class="form-check-input" value="true" />
+                    <label asp-for="SoloNuevos" class="form-check-label small"></label>
+                </div>
+            </div>
+            <div class="col-6 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-dark"><i class="bi bi-funnel"></i> Filtrar</button>
+                <a asp-action="Usuarios" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+            </div>
+        </div>
+        <div class="mt-2"><partial name="_RangosRapidos" /></div>
+    </div>
+</form>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Usuarios</div><div class="kpi-valor">@Model.Total</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Activos</div><div class="kpi-valor text-success">@Model.Activos</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Inactivos</div><div class="kpi-valor text-danger">@Model.Inactivos</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Altas del período</div><div class="kpi-valor text-primary">@Model.Nuevos</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Compraron</div><div class="kpi-valor">@Model.ClientesQueCompraron</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Total comprado</div><div class="kpi-valor text-success">@Formato.Precio(Model.TotalComprado)</div></div></div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <partial name="_Grafico" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Usuarios por rol", ["Icono"] = "bi-pie-chart", ["Id"] = "graficoRoles" }' />
+    </div>
+    <div class="col-lg-4">
+        <partial name="_Grafico" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Altas por mes", ["Icono"] = "bi-person-plus", ["Id"] = "graficoAltas" }' />
+    </div>
+    <div class="col-lg-4">
+        <partial name="_Grafico" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Clientes que más compraron", ["Icono"] = "bi-bar-chart", ["Id"] = "graficoClientes" }' />
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white"><i class="bi bi-list-ul"></i> Detalle de usuarios <span class="text-muted small">(@Model.Total)</span></div>
+    <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Usuario</th>
+                    <th>Email</th>
+                    <th class="text-center">Rol</th>
+                    <th>Cargo / Tipo</th>
+                    <th>Teléfono</th>
+                    <th class="text-center">Estado</th>
+                    <th>Alta</th>
+                    <th class="text-center">Compras</th>
+                    <th class="text-end">Total comprado</th>
+                    <th>Última compra</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var f in Model.Usuarios)
+                {
+                    <tr>
+                        <td class="fw-bold">@f.Usuario.NombreCompleto</td>
+                        <td class="small">@f.Usuario.Email</td>
+                        <td class="text-center">
+                            <span class="badge @(f.Rol == "Admin" ? "bg-dark" : f.Rol == "Empleado" ? "bg-primary" : "bg-secondary")">@f.Rol</span>
+                        </td>
+                        <td class="small">@f.Detalle</td>
+                        <td class="small">@f.Telefono</td>
+                        <td class="text-center">
+                            <span class="badge @(f.Usuario.Estado ? "bg-success" : "bg-danger")">@(f.Usuario.Estado ? "Activo" : "Inactivo")</span>
+                        </td>
+                        <td class="small">@Formato.FechaCorta(f.Usuario.FechaCreacion)</td>
+                        <td class="text-center">@(f.EsCliente ? f.CantidadCompras.ToString() : "—")</td>
+                        <td class="text-end text-nowrap">@(f.EsCliente ? Formato.Precio(f.TotalComprado) : "—")</td>
+                        <td class="small">@(f.UltimaCompra.HasValue ? Formato.Fecha(f.UltimaCompra.Value) : "—")</td>
+                    </tr>
+                }
+                @if (Model.Usuarios.Count == 0)
+                {
+                    <tr><td colspan="10" class="text-center text-muted py-4">No hay usuarios con esos filtros.</td></tr>
+                }
+            </tbody>
+            @if (Model.Usuarios.Count > 0)
+            {
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="7">Total (@Model.Activos activos · @Model.Inactivos inactivos)</td>
+                        <td class="text-center">@Model.Usuarios.Sum(u => u.CantidadCompras)</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(Model.TotalComprado)</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_Graficos" />
+    <script>
+        reportes.torta("graficoRoles", {
+            labels: @Html.Raw(Json.Serialize(Model.PorRol.Select(r => r.Nombre))),
+            datos: @Html.Raw(Json.Serialize(Model.PorRol.Select(r => r.Cantidad))),
+            moneda: false
+        });
+
+        reportes.lineas("graficoAltas", {
+            labels: @Html.Raw(Json.Serialize(Model.AltasPorMes.Select(a => a.Nombre))),
+            series: [{ label: "Altas", datos: @Html.Raw(Json.Serialize(Model.AltasPorMes.Select(a => a.Cantidad))) }],
+            moneda: false
+        });
+
+        reportes.barras("graficoClientes", {
+            labels: @Html.Raw(Json.Serialize(topClientes.Select(c => c.Usuario.NombreCompleto))),
+            series: [{ label: "Total comprado", datos: @Html.Raw(Json.Serialize(topClientes.Select(c => c.TotalComprado))) }],
+            horizontal: true
+        });
+    </script>
+}

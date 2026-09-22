@@ -115,3 +115,77 @@ body {
   max-width: 480px;
   margin: 0 auto;
 }
+
+/* ---- Reportes ---- */
+.kpi {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: .5rem;
+  padding: .75rem 1rem;
+  height: 100%;
+}
+
+.kpi .kpi-label {
+  font-size: .75rem;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.kpi .kpi-valor {
+  white-space: nowrap;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.reporte-card {
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.reporte-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15) !important;
+}
+
+.reporte-card .bi {
+  font-size: 2.2rem;
+}
+
+/* Contenedor de cada gráfico (Chart.js dibuja dentro del canvas) */
+.grafico {
+  position: relative;
+}
+
+/* Al imprimir: sin barra de navegación, pie ni botones; tablas completas y en blanco */
+@media print {
+  header, footer, .d-print-none { display: none !important; }
+  body { background: #fff; font-size: 12px; }
+  .container { max-width: 100% !important; }
+  main { padding: 0 !important; }
+  .card { border: 1px solid #ccc !important; box-shadow: none !important; break-inside: avoid; }
+  .table-responsive { overflow: visible !important; }
+  a { color: inherit !important; text-decoration: none !important; }
+  .row > * { break-inside: avoid; }
+  /* Los gráficos se imprimen tal como se ven en pantalla */
+  canvas { max-width: 100% !important; height: auto !important; }
+  .grafico { height: 220px !important; }
+  /* El encabezado de cada tabla se repite en todas las hojas */
+  thead { display: table-header-group; }
+  /* Las etiquetas de color (estados, roles) se imprimen con su fondo:
+     sin esto el navegador las deja en blanco y no se lee el texto */
+  .badge {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* Encabezados de tabla en gris claro en vez de negro (gasta mucha tinta) */
+  .table-dark th {
+    background-color: #e9ecef !important;
+    color: #000 !important;
+    border-bottom: 1px solid #adb5bd;
+  }
+}
+
+@page {
+  margin: 12mm;
+}

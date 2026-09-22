@@ -1,0 +1,10 @@
+@* Caja de un gráfico: título y el canvas donde Chart.js dibuja.
+   ViewData: Titulo, Icono, Id (id del canvas) y Alto (opcional, por defecto 260px). *@
+<div class="card shadow-sm h-100">
+    <div class="card-header bg-white"><i class="bi @ViewData["Icono"]"></i> @ViewData["Titulo"]</div>
+    <div class="card-body">
+        <div class="grafico" style="height: @(ViewData["Alto"] ?? "260")px">
+            <canvas id="@ViewData["Id"]"></canvas>
+        </div>
+    </div>
+</div>

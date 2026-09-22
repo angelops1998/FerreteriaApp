@@ -1,0 +1,142 @@
+@model ReporteComprasViewModel
+@{
+    ViewData["Title"] = "Reporte de compras";
+    ViewData["Archivo"] = $"compras_{Model.Desde:yyyyMMdd}_{Model.Hasta:yyyyMMdd}";
+    var rango = $"Del {Model.Desde:dd/MM/yyyy} al {Model.Hasta:dd/MM/yyyy}"
+        + (Model.Estado.HasValue ? $" · Estado: {Model.Estado}" : "")
+        + (Model.IdProveedor.HasValue ? $" · Proveedor: {((SelectList)ViewBag.Proveedores).FirstOrDefault(p => p.Selected)?.Text}" : "");
+}
+
+<partial name="_EncabezadoImpresion" model="rango" />
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 d-print-none">
+    <h2 class="mb-0"><i class="bi bi-truck"></i> Reporte de compras a proveedores</h2>
+    <partial name="_Acciones" />
+</div>
+
+<form method="get" class="card shadow-sm mb-4 d-print-none">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-6 col-md-2">
+                <label asp-for="Desde" class="form-label mb-1"></label>
+                <input asp-for="Desde" class="form-control form-control-sm" name="desde" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label asp-for="Hasta" class="form-label mb-1"></label>
+                <input asp-for="Hasta" class="form-control form-control-sm" name="hasta" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label asp-for="Estado" class="form-label mb-1"></label>
+                <select asp-for="Estado" name="estado" class="form-select form-select-sm" asp-items="Html.GetEnumSelectList<EstadoCompra>()">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label asp-for="IdProveedor" class="form-label mb-1"></label>
+                <select asp-for="IdProveedor" name="idProveedor" class="form-select form-select-sm" asp-items="ViewBag.Proveedores">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-dark"><i class="bi bi-funnel"></i> Filtrar</button>
+                <a asp-action="Compras" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+            </div>
+        </div>
+        <div class="mt-2"><partial name="_RangosRapidos" /></div>
+    </div>
+</form>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Compras en el período</div><div class="kpi-valor">@Model.CantidadCompras</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Completadas</div><div class="kpi-valor">@Model.CantidadCompletadas</div></div></div>
+    <div class="col-6 col-md-4 col-xl-3"><div class="kpi"><div class="kpi-label">Total pagado</div><div class="kpi-valor text-danger">@Formato.Precio(Model.TotalCompletadas)</div></div></div>
+    <div class="col-6 col-md-4 col-xl-3"><div class="kpi"><div class="kpi-label">Pendiente de recibir</div><div class="kpi-valor text-warning">@Formato.Precio(Model.TotalPendientes)</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Unidades recibidas</div><div class="kpi-valor">@Model.UnidadesCompradas</div></div></div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <partial name="_Grafico" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Compras pagadas por día", ["Icono"] = "bi-graph-up", ["Id"] = "graficoDias" }' />
+    </div>
+    <div class="col-lg-4">
+        <partial name="_Grafico" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Por proveedor", ["Icono"] = "bi-pie-chart", ["Id"] = "graficoProveedores" }' />
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6 col-xl-3">
+        <partial name="_Resumen" model="Model.PorEstado" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Por estado", ["Icono"] = "bi-flag", ["Columna"] = "Estado", ["ColCantidad"] = "Compras" }' />
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <partial name="_Resumen" model="Model.PorProveedor" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Por proveedor (completadas)", ["Icono"] = "bi-building", ["Columna"] = "Proveedor", ["ColCantidad"] = "Compras" }' />
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <partial name="_Resumen" model="Model.PorEmpleado" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Por empleado (completadas)", ["Icono"] = "bi-person-badge", ["Columna"] = "Empleado", ["ColCantidad"] = "Compras" }' />
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <partial name="_Resumen" model="Model.PorDia" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Por día (completadas)", ["Icono"] = "bi-calendar3", ["Columna"] = "Día", ["ColCantidad"] = "Compras" }' />
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white"><i class="bi bi-list-ul"></i> Detalle de compras <span class="text-muted small">(@Model.CantidadCompras)</span></div>
+    <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>N°</th>
+                    <th>Fecha</th>
+                    <th>Proveedor</th>
+                    <th>Empleado</th>
+                    <th class="text-center">Unid.</th>
+                    <th class="text-end">Total</th>
+                    <th class="text-center">Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var c in Model.Compras)
+                {
+                    <tr>
+                        <td><a asp-controller="Compras" asp-action="Details" asp-route-id="@c.IdCompra" class="fw-bold text-decoration-none">#@c.IdCompra</a></td>
+                        <td>@Formato.Fecha(c.Fecha)</td>
+                        <td>@c.Proveedor?.Nombre <small class="text-muted">@c.Proveedor?.Ruc</small></td>
+                        <td class="small">@c.Empleado?.NombreCompleto</td>
+                        <td class="text-center">@c.Detalles.Sum(d => d.Cantidad)</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(c.Total)</td>
+                        <td class="text-center"><span class="badge @Formato.EstadoBadge(c.Estado)">@c.Estado</span></td>
+                    </tr>
+                }
+                @if (Model.Compras.Count == 0)
+                {
+                    <tr><td colspan="7" class="text-center text-muted py-4">No hay compras en este período.</td></tr>
+                }
+            </tbody>
+            @if (Model.Compras.Count > 0)
+            {
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="4">Total completadas (@Model.CantidadCompletadas)</td>
+                        <td class="text-center">@Model.UnidadesCompradas</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(Model.TotalCompletadas)</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_Graficos" />
+    <script>
+        reportes.lineas("graficoDias", {
+            labels: @Html.Raw(Json.Serialize(Model.PorDia.Select(d => d.Nombre))),
+            series: [{ label: "Pagado", datos: @Html.Raw(Json.Serialize(Model.PorDia.Select(d => d.Total))), color: "#dc3545" }]
+        });
+
+        reportes.torta("graficoProveedores", {
+            labels: @Html.Raw(Json.Serialize(Model.PorProveedor.Select(p => p.Nombre))),
+            datos: @Html.Raw(Json.Serialize(Model.PorProveedor.Select(p => p.Total)))
+        });
+    </script>
+}

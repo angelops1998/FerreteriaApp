@@ -61,6 +61,9 @@ detalle y forma de pago, y compras a proveedores con detalle.
   stock y actualiza el precio de compra). No se permite cancelar una compra si dejaría stock negativo.
 - **Inventario**: stock actual, mínimo, última actualización, filtro "bajo mínimo" y ajuste manual.
 - Crear y editar **productos** (con subida de imagen).
+- **Reportes** (menú Gestión → Reportes): ventas, compras a proveedores, inventario valorizado,
+  productos vendidos con ganancia estimada, ranking de clientes y resumen financiero mensual.
+  Todos con filtros (fechas, estado, categoría...), botón **Imprimir / PDF** y **Exportar CSV** (Excel).
 
 ### Administrador (rol `Admin`)
 - Todo lo del empleado, más: **categorías**, **proveedores**, **formas de pago**, eliminar productos,
@@ -423,7 +426,8 @@ FerreteriaApp/
 │   ├── VentasController.cs        Checkout web, mis compras, venta de mostrador, gestión de estados
 │   ├── ComprasController.cs       Compras a proveedores y su ingreso al stock
 │   ├── InventarioController.cs    Inventario y ajustes manuales
-│   └── AdminController.cs         Panel general, usuarios y empleados
+│   ├── AdminController.cs         Panel general, usuarios y empleados
+│   └── ReportesController.cs      Reportes (ventas, compras, inventario, productos, clientes, financiero) + CSV
 ├── Models/
 │   ├── Usuario.cs                 Base de Identity (int) + nombre, apellido, estado, fechaCreacion
 │   ├── Rol.cs                     Rol de Identity (int) + descripción
@@ -432,17 +436,19 @@ FerreteriaApp/
 │   ├── Venta.cs (+ enum EstadoVenta), DetalleVenta.cs
 │   ├── Compra.cs (+ enum EstadoCompra), DetalleCompra.cs
 │   ├── CarritoItem.cs             Ítem del carrito (en sesión)
-│   └── *ViewModel.cs              Formularios (login, registro, perfil, checkout, venta, compra, empleado)
+│   ├── *ViewModel.cs              Formularios (login, registro, perfil, checkout, venta, compra, empleado)
+│   └── Reporte*ViewModel.cs, ResumenFila.cs   Datos que muestra cada reporte
 ├── Data/
 │   ├── ApplicationDbContext.cs    Único DbContext (Identity + tablas de la ferretería)
 │   └── DbInitializer.cs           Seed: roles, admin, vendedor, formas de pago, categorías, proveedores, productos, inventario
 ├── Helpers/
-│   ├── Formato.cs                 Precios, fechas y colores de estado
+│   ├── Formato.cs                 Precios, fechas (UTC ↔ hora local) y colores de estado
+│   ├── Csv.cs                     Genera los archivos CSV de los reportes
 │   ├── CarritoSesion.cs           Leer/guardar el carrito en la sesión
 │   ├── UsuarioExtensions.cs       Id numérico del usuario logueado, EsPersonal()
 │   └── SpanishIdentityErrorDescriber.cs   Mensajes de Identity en español
 ├── Migrations/                    Migraciones de EF Core (ya generadas)
-├── Views/                         Vistas Razor (Home, Account, Productos, Categorias, Proveedores, FormasPago, Carrito, Ventas, Compras, Inventario, Admin, Shared)
+├── Views/                         Vistas Razor (Home, Account, Productos, Categorias, Proveedores, FormasPago, Carrito, Ventas, Compras, Inventario, Admin, Reportes, Shared)
 ├── wwwroot/
 │   ├── css/site.css               Estilos propios
 │   └── images/productos/          Imágenes de los productos
@@ -1211,10 +1217,14 @@ namespace FerreteriaApp.Models
     // Formulario de registro público: crea un Cliente
     public class RegistroViewModel
     {
-        [Required(ErrorMessage = "El nombre es obligatorio"), MaxLength(100), Display(Name = "Nombre")]
+        [Required(ErrorMessage = "El nombre es obligatorio"), MaxLength(100)]
+        [RegularExpression(@"^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]+$", ErrorMessage = "El nombre solo puede contener letras")]
+        [Display(Name = "Nombre")]
         public string Nombre { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "El apellido es obligatorio"), MaxLength(100), Display(Name = "Apellido")]
+        [Required(ErrorMessage = "El apellido es obligatorio"), MaxLength(100)]
+        [RegularExpression(@"^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]+$", ErrorMessage = "El apellido solo puede contener letras")]
+        [Display(Name = "Apellido")]
         public string Apellido { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "El email es obligatorio"), EmailAddress(ErrorMessage = "Email inválido"), Display(Name = "Email")]
@@ -1260,10 +1270,14 @@ namespace FerreteriaApp.Models
         [Display(Name = "Email")]
         public string Email { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "El nombre es obligatorio"), MaxLength(100), Display(Name = "Nombre")]
+        [Required(ErrorMessage = "El nombre es obligatorio"), MaxLength(100)]
+        [RegularExpression(@"^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]+$", ErrorMessage = "El nombre solo puede contener letras")]
+        [Display(Name = "Nombre")]
         public string Nombre { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "El apellido es obligatorio"), MaxLength(100), Display(Name = "Apellido")]
+        [Required(ErrorMessage = "El apellido es obligatorio"), MaxLength(100)]
+        [RegularExpression(@"^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]+$", ErrorMessage = "El apellido solo puede contener letras")]
+        [Display(Name = "Apellido")]
         public string Apellido { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "El teléfono es obligatorio")]
@@ -1449,10 +1463,14 @@ namespace FerreteriaApp.Models
     {
         public int Id { get; set; }
 
-        [Required(ErrorMessage = "El nombre es obligatorio"), MaxLength(100), Display(Name = "Nombre")]
+        [Required(ErrorMessage = "El nombre es obligatorio"), MaxLength(100)]
+        [RegularExpression(@"^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]+$", ErrorMessage = "El nombre solo puede contener letras")]
+        [Display(Name = "Nombre")]
         public string Nombre { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "El apellido es obligatorio"), MaxLength(100), Display(Name = "Apellido")]
+        [Required(ErrorMessage = "El apellido es obligatorio"), MaxLength(100)]
+        [RegularExpression(@"^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]+$", ErrorMessage = "El apellido solo puede contener letras")]
+        [Display(Name = "Apellido")]
         public string Apellido { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "El email es obligatorio"), EmailAddress(ErrorMessage = "Email inválido"), Display(Name = "Email")]
@@ -1493,6 +1511,284 @@ namespace FerreteriaApp.Models
     {
         public string? RequestId { get; set; }
         public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+    }
+}
+```
+
+### ViewModels de reportes: `ResumenFila.cs` y `Reporte*ViewModel.cs`
+
+Cada reporte tiene su propio ViewModel: guarda los **filtros** elegidos (fechas, estado,
+categoría...), la **lista de datos** que se muestra y **propiedades calculadas** (totales, promedios)
+que se resuelven con LINQ sobre esa lista. `ResumenFila` es una línea genérica de desglose
+("Efectivo — 12 ventas — Bs 1.540,00") que usan varios reportes.
+
+`Models/ResumenFila.cs`
+
+```csharp
+namespace FerreteriaApp.Models
+{
+    // Una línea de un desglose de reporte: por ejemplo "Efectivo — 12 ventas — Bs 1.540,00"
+    public class ResumenFila
+    {
+        public string Nombre { get; set; } = string.Empty;
+        public int Cantidad { get; set; }
+        public decimal Total { get; set; }
+    }
+}
+```
+
+`Models/ReporteVentasViewModel.cs`
+
+```csharp
+using System.ComponentModel.DataAnnotations;
+
+namespace FerreteriaApp.Models
+{
+    // Reporte de ventas en un rango de fechas, con filtros y desgloses
+    public class ReporteVentasViewModel
+    {
+        [DataType(DataType.Date)]
+        [Display(Name = "Desde")]
+        public DateTime Desde { get; set; }
+
+        [DataType(DataType.Date)]
+        [Display(Name = "Hasta")]
+        public DateTime Hasta { get; set; }
+
+        [Display(Name = "Estado")]
+        public EstadoVenta? Estado { get; set; }
+
+        [Display(Name = "Forma de pago")]
+        public int? IdFormaPago { get; set; }
+
+        public List<Venta> Ventas { get; set; } = new();
+
+        // Desgloses (solo sobre ventas completadas, que son las que representan dinero cobrado)
+        public List<ResumenFila> PorEstado { get; set; } = new();
+        public List<ResumenFila> PorFormaPago { get; set; } = new();
+        public List<ResumenFila> PorEmpleado { get; set; } = new();
+        public List<ResumenFila> PorDia { get; set; } = new();
+
+        public int CantidadVentas => Ventas.Count;
+        public int CantidadCompletadas => Ventas.Count(v => v.Estado == EstadoVenta.Completada);
+        public decimal TotalCompletadas => Ventas.Where(v => v.Estado == EstadoVenta.Completada).Sum(v => v.Total);
+        public decimal TotalPendientes => Ventas.Where(v => v.Estado == EstadoVenta.Pendiente).Sum(v => v.Total);
+        public int UnidadesVendidas => Ventas.Where(v => v.Estado == EstadoVenta.Completada).Sum(v => v.Detalles.Sum(d => d.Cantidad));
+        public decimal TicketPromedio => CantidadCompletadas == 0 ? 0 : TotalCompletadas / CantidadCompletadas;
+    }
+}
+```
+
+`Models/ReporteComprasViewModel.cs`
+
+```csharp
+using System.ComponentModel.DataAnnotations;
+
+namespace FerreteriaApp.Models
+{
+    // Reporte de compras a proveedores en un rango de fechas
+    public class ReporteComprasViewModel
+    {
+        [DataType(DataType.Date)]
+        [Display(Name = "Desde")]
+        public DateTime Desde { get; set; }
+
+        [DataType(DataType.Date)]
+        [Display(Name = "Hasta")]
+        public DateTime Hasta { get; set; }
+
+        [Display(Name = "Estado")]
+        public EstadoCompra? Estado { get; set; }
+
+        [Display(Name = "Proveedor")]
+        public int? IdProveedor { get; set; }
+
+        public List<Compra> Compras { get; set; } = new();
+
+        // Desgloses (solo sobre compras completadas: mercadería ya recibida y pagada)
+        public List<ResumenFila> PorEstado { get; set; } = new();
+        public List<ResumenFila> PorProveedor { get; set; } = new();
+        public List<ResumenFila> PorEmpleado { get; set; } = new();
+        public List<ResumenFila> PorDia { get; set; } = new();
+
+        public int CantidadCompras => Compras.Count;
+        public int CantidadCompletadas => Compras.Count(c => c.Estado == EstadoCompra.Completada);
+        public decimal TotalCompletadas => Compras.Where(c => c.Estado == EstadoCompra.Completada).Sum(c => c.Total);
+        public decimal TotalPendientes => Compras.Where(c => c.Estado == EstadoCompra.Pendiente).Sum(c => c.Total);
+        public int UnidadesCompradas => Compras.Where(c => c.Estado == EstadoCompra.Completada).Sum(c => c.Detalles.Sum(d => d.Cantidad));
+    }
+}
+```
+
+`Models/ReporteInventarioViewModel.cs`
+
+```csharp
+using System.ComponentModel.DataAnnotations;
+
+namespace FerreteriaApp.Models
+{
+    // Reporte de inventario valorizado: cuánto stock hay y cuánto vale (a precio de compra y de venta)
+    public class ReporteInventarioViewModel
+    {
+        [Display(Name = "Categoría")]
+        public int? IdCategoria { get; set; }
+
+        [Display(Name = "Solo productos bajo el mínimo")]
+        public bool SoloBajos { get; set; }
+
+        [Display(Name = "Incluir productos inactivos")]
+        public bool IncluirInactivos { get; set; }
+
+        public List<Producto> Productos { get; set; } = new();
+
+        // Valor del stock por categoría (Cantidad = unidades, Total = valor a precio de compra)
+        public List<ResumenFila> PorCategoria { get; set; } = new();
+
+        public int CantidadProductos => Productos.Count;
+        public int ProductosBajoMinimo => Productos.Count(p => !p.VerificarStock());
+        public int ProductosSinStock => Productos.Count(p => p.Stock == 0);
+        public int UnidadesTotales => Productos.Sum(p => p.Stock);
+        public decimal ValorCosto => Productos.Sum(p => p.Stock * p.PrecioCompra);
+        public decimal ValorVenta => Productos.Sum(p => p.Stock * p.PrecioVenta);
+        public decimal GananciaPotencial => ValorVenta - ValorCosto;
+    }
+}
+```
+
+`Models/ReporteProductosViewModel.cs`
+
+```csharp
+using System.ComponentModel.DataAnnotations;
+
+namespace FerreteriaApp.Models
+{
+    // Una línea del reporte de productos vendidos
+    public class FilaProductoVendido
+    {
+        public Producto Producto { get; set; } = null!;
+        public int Unidades { get; set; }
+        public int CantidadVentas { get; set; }
+        public decimal Ingresos { get; set; }
+
+        // Costo estimado con el precio de compra actual del producto
+        public decimal Costo { get; set; }
+        public decimal Ganancia => Ingresos - Costo;
+        public decimal Margen => Ingresos == 0 ? 0 : Ganancia / Ingresos * 100;
+    }
+
+    // Reporte de productos: los más vendidos, su rentabilidad y los que no se vendieron
+    public class ReporteProductosViewModel
+    {
+        [DataType(DataType.Date)]
+        [Display(Name = "Desde")]
+        public DateTime Desde { get; set; }
+
+        [DataType(DataType.Date)]
+        [Display(Name = "Hasta")]
+        public DateTime Hasta { get; set; }
+
+        [Display(Name = "Categoría")]
+        public int? IdCategoria { get; set; }
+
+        [Display(Name = "Ordenar por")]
+        public string Orden { get; set; } = "unidades"; // unidades | ingresos | ganancia
+
+        public List<FilaProductoVendido> Vendidos { get; set; } = new();
+        public List<Producto> SinVentas { get; set; } = new();
+
+        public int UnidadesTotales => Vendidos.Sum(v => v.Unidades);
+        public decimal IngresosTotales => Vendidos.Sum(v => v.Ingresos);
+        public decimal CostoTotal => Vendidos.Sum(v => v.Costo);
+        public decimal GananciaTotal => IngresosTotales - CostoTotal;
+        public decimal MargenPromedio => IngresosTotales == 0 ? 0 : GananciaTotal / IngresosTotales * 100;
+    }
+}
+```
+
+`Models/ReporteClientesViewModel.cs`
+
+```csharp
+using System.ComponentModel.DataAnnotations;
+
+namespace FerreteriaApp.Models
+{
+    // Una línea del ranking de clientes
+    public class FilaCliente
+    {
+        public Cliente Cliente { get; set; } = null!;
+        public int CantidadCompras { get; set; }
+        public int Unidades { get; set; }
+        public decimal Total { get; set; }
+        public DateTime UltimaCompra { get; set; }
+        public decimal Promedio => CantidadCompras == 0 ? 0 : Total / CantidadCompras;
+    }
+
+    // Reporte de clientes: quiénes compran más (ventas completadas en el rango de fechas)
+    public class ReporteClientesViewModel
+    {
+        [DataType(DataType.Date)]
+        [Display(Name = "Desde")]
+        public DateTime Desde { get; set; }
+
+        [DataType(DataType.Date)]
+        [Display(Name = "Hasta")]
+        public DateTime Hasta { get; set; }
+
+        [Display(Name = "Tipo de cliente")]
+        public string? TipoCliente { get; set; }
+
+        public List<FilaCliente> Clientes { get; set; } = new();
+
+        public int ClientesRegistrados { get; set; }
+        public int ClientesNuevos { get; set; }
+        public int ClientesQueCompraron => Clientes.Count;
+        public decimal TotalVendido => Clientes.Sum(c => c.Total);
+    }
+}
+```
+
+`Models/ReporteFinancieroViewModel.cs`
+
+```csharp
+using System.ComponentModel.DataAnnotations;
+
+namespace FerreteriaApp.Models
+{
+    // Una fila del resumen mensual: lo vendido y lo comprado en un mes
+    public class FilaMes
+    {
+        public int Mes { get; set; }
+        public string Nombre => ReporteFinancieroViewModel.NombresMeses[Mes - 1];
+        public int CantidadVentas { get; set; }
+        public decimal Ventas { get; set; }
+        public int CantidadCompras { get; set; }
+        public decimal Compras { get; set; }
+        public decimal Diferencia => Ventas - Compras;
+    }
+
+    // Resumen financiero de un año: ventas cobradas vs. compras pagadas, mes a mes
+    public class ReporteFinancieroViewModel
+    {
+        public static readonly string[] NombresMeses =
+        {
+            "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        };
+
+        [Display(Name = "Año")]
+        public int Anio { get; set; }
+
+        // Años en los que hubo movimientos, para el combo
+        public List<int> Anios { get; set; } = new();
+
+        public List<FilaMes> Meses { get; set; } = new();
+
+        public decimal TotalVentas => Meses.Sum(m => m.Ventas);
+        public decimal TotalCompras => Meses.Sum(m => m.Compras);
+        public decimal Diferencia => TotalVentas - TotalCompras;
+        public int CantidadVentas => Meses.Sum(m => m.CantidadVentas);
+        public int CantidadCompras => Meses.Sum(m => m.CantidadCompras);
+        public decimal MayorMonto => Meses.Count == 0 ? 0 : Math.Max(Meses.Max(m => m.Ventas), Meses.Max(m => m.Compras));
     }
 }
 ```
@@ -1978,19 +2274,28 @@ namespace FerreteriaApp.Helpers
         public static string Precio(decimal valor)
             => $"{Moneda} {valor.ToString("N2", CultureInfo.InvariantCulture)}";
 
-        public static string Fecha(DateTime utc)
+        // Zona horaria de la tienda. Si el servidor no la conoce, se usa UTC.
+        public static TimeZoneInfo Zona
         {
-            try
+            get
             {
-                var tz = TimeZoneInfo.FindSystemTimeZoneById(ZonaHoraria);
-                var local = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), tz);
-                return local.ToString("dd/MM/yyyy HH:mm");
-            }
-            catch (TimeZoneNotFoundException)
-            {
-                return utc.ToString("dd/MM/yyyy HH:mm");
+                try { return TimeZoneInfo.FindSystemTimeZoneById(ZonaHoraria); }
+                catch (TimeZoneNotFoundException) { return TimeZoneInfo.Utc; }
+                catch (InvalidTimeZoneException) { return TimeZoneInfo.Utc; }
             }
         }
+
+        // Las fechas se guardan en UTC en la base de datos; estas dos funciones pasan
+        // de UTC a la hora local de la tienda y al revés (para filtrar por fecha en los reportes).
+        public static DateTime ALocal(DateTime utc)
+            => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Zona);
+
+        public static DateTime AUtc(DateTime local)
+            => TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(local, DateTimeKind.Unspecified), Zona);
+
+        public static string Fecha(DateTime utc) => ALocal(utc).ToString("dd/MM/yyyy HH:mm");
+
+        public static string FechaCorta(DateTime utc) => ALocal(utc).ToString("dd/MM/yyyy");
 
         // Color de la etiqueta según el estado de la venta
         public static string EstadoBadge(EstadoVenta estado) => estado switch
@@ -2016,7 +2321,60 @@ namespace FerreteriaApp.Helpers
 
 - `Precio(decimal)`: siempre usa punto decimal y separador de miles, con el símbolo configurado.
 - `Fecha(DateTime)`: convierte la fecha UTC guardada en la base a la zona horaria de la tienda.
+- `ALocal` / `AUtc`: pasan una fecha de UTC a hora local y al revés. Los reportes las usan para que
+  "del 1 al 30" signifique días completos en la hora de la tienda, aunque la base guarde UTC.
 - `EstadoBadge(...)`: color de la etiqueta Bootstrap para cada estado de venta o de compra.
+
+## 5.1b `Helpers/Csv.cs` — exportar a Excel
+
+`Helpers/Csv.cs`
+
+```csharp
+using System.Globalization;
+using System.Text;
+
+namespace FerreteriaApp.Helpers
+{
+    // Arma un archivo CSV (se abre directo en Excel) a partir de encabezados y filas.
+    // Usa punto y coma como separador y UTF-8 con BOM para que Excel muestre bien los acentos.
+    public static class Csv
+    {
+        public static byte[] Generar(string[] encabezados, IEnumerable<object?[]> filas)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("sep=;"); // le indica a Excel el separador, sin importar el idioma de Windows
+            sb.AppendLine(string.Join(";", encabezados.Select(Escapar)));
+
+            foreach (var fila in filas)
+                sb.AppendLine(string.Join(";", fila.Select(Escapar)));
+
+            return Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+        }
+
+        // Convierte cada valor a texto: los decimales con dos decimales y punto, las fechas en formato local
+        private static string Escapar(object? valor)
+        {
+            var texto = valor switch
+            {
+                null => "",
+                decimal d => d.ToString("F2", CultureInfo.InvariantCulture),
+                DateTime f => Formato.Fecha(f),
+                bool b => b ? "Sí" : "No",
+                _ => valor.ToString() ?? ""
+            };
+
+            if (texto.Contains(';') || texto.Contains('"') || texto.Contains('\n'))
+                texto = "\"" + texto.Replace("\"", "\"\"") + "\"";
+
+            return texto;
+        }
+    }
+}
+```
+
+Un CSV es un archivo de texto con una fila por línea y las columnas separadas por un carácter (acá
+`;`). Excel lo abre directo. La primera línea `sep=;` le dice a Excel qué separador usar y el BOM
+UTF-8 hace que muestre bien los acentos. No hace falta ningún paquete NuGet.
 
 ## 5.2 `Helpers/CarritoSesion.cs` — el carrito en la sesión
 
@@ -4225,6 +4583,366 @@ namespace FerreteriaApp.Controllers
 - **CrearEmpleado / EditarEmpleado**: alta y edición de empleados (con contraseña y rol). En la
   edición, la contraseña se cambia solo si se escribe una nueva (`ResetPasswordAsync` con token).
 
+## 7.10 `Controllers/ReportesController.cs` — reportes
+
+`Controllers/ReportesController.cs`
+
+```csharp
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
+using FerreteriaApp.Data;
+using FerreteriaApp.Helpers;
+using FerreteriaApp.Models;
+
+namespace FerreteriaApp.Controllers
+{
+    // Sección de reportes (Admin y Empleado). Cada reporte se puede ver en pantalla,
+    // imprimir (o guardar como PDF desde el navegador) y exportar a CSV con ?formato=csv.
+    [Authorize(Roles = "Admin,Empleado")]
+    public class ReportesController(ApplicationDbContext context) : Controller
+    {
+        public IActionResult Index() => View();
+
+        // ---------- VENTAS ----------
+
+        public async Task<IActionResult> Ventas(DateTime? desde, DateTime? hasta, EstadoVenta? estado, int? idFormaPago, string? formato)
+        {
+            var (inicio, fin, inicioUtc, finUtc) = RangoFechas(desde, hasta);
+            var model = new ReporteVentasViewModel { Desde = inicio, Hasta = fin, Estado = estado, IdFormaPago = idFormaPago };
+
+            var query = context.Ventas
+                .AsNoTracking()
+                .Include(v => v.Cliente)
+                .Include(v => v.Empleado)
+                .Include(v => v.FormaPago)
+                .Include(v => v.Detalles)
+                .Where(v => v.Fecha >= inicioUtc && v.Fecha < finUtc);
+
+            if (estado.HasValue) query = query.Where(v => v.Estado == estado.Value);
+            if (idFormaPago.HasValue) query = query.Where(v => v.IdFormaPago == idFormaPago.Value);
+
+            model.Ventas = await query.OrderBy(v => v.Fecha).ToListAsync();
+
+            model.PorEstado = Agrupar(model.Ventas, v => v.Estado.ToString(), v => v.Total);
+            var completadas = model.Ventas.Where(v => v.Estado == EstadoVenta.Completada).ToList();
+            model.PorFormaPago = Agrupar(completadas, v => v.FormaPago?.Nombre ?? "—", v => v.Total);
+            model.PorEmpleado = Agrupar(completadas, v => v.Empleado?.NombreCompleto ?? "Sin asignar", v => v.Total);
+            model.PorDia = AgruparPorDia(completadas, v => v.Fecha, v => v.Total);
+
+            if (formato == "csv")
+            {
+                var filas = model.Ventas.Select(v => new object?[]
+                {
+                    v.IdVenta, v.Fecha, v.Cliente?.NombreCompleto, v.Cliente?.Email, v.Empleado?.NombreCompleto ?? "",
+                    v.FormaPago?.Nombre, v.Detalles.Sum(d => d.Cantidad), v.Total, v.Estado, v.Observaciones
+                });
+                return ArchivoCsv(["N°", "Fecha", "Cliente", "Email", "Empleado", "Forma de pago", "Unidades", "Total", "Estado", "Observaciones"], filas, $"ventas_{inicio:yyyyMMdd}_{fin:yyyyMMdd}");
+            }
+
+            ViewBag.FormasPago = new SelectList(await context.FormasPago.OrderBy(f => f.Nombre).ToListAsync(), "IdFormaPago", "Nombre", idFormaPago);
+            return View(model);
+        }
+
+        // ---------- COMPRAS ----------
+
+        public async Task<IActionResult> Compras(DateTime? desde, DateTime? hasta, EstadoCompra? estado, int? idProveedor, string? formato)
+        {
+            var (inicio, fin, inicioUtc, finUtc) = RangoFechas(desde, hasta);
+            var model = new ReporteComprasViewModel { Desde = inicio, Hasta = fin, Estado = estado, IdProveedor = idProveedor };
+
+            var query = context.Compras
+                .AsNoTracking()
+                .Include(c => c.Proveedor)
+                .Include(c => c.Empleado)
+                .Include(c => c.Detalles)
+                .Where(c => c.Fecha >= inicioUtc && c.Fecha < finUtc);
+
+            if (estado.HasValue) query = query.Where(c => c.Estado == estado.Value);
+            if (idProveedor.HasValue) query = query.Where(c => c.IdProveedor == idProveedor.Value);
+
+            model.Compras = await query.OrderBy(c => c.Fecha).ToListAsync();
+
+            model.PorEstado = Agrupar(model.Compras, c => c.Estado.ToString(), c => c.Total);
+            var completadas = model.Compras.Where(c => c.Estado == EstadoCompra.Completada).ToList();
+            model.PorProveedor = Agrupar(completadas, c => c.Proveedor?.Nombre ?? "—", c => c.Total);
+            model.PorEmpleado = Agrupar(completadas, c => c.Empleado?.NombreCompleto ?? "—", c => c.Total);
+            model.PorDia = AgruparPorDia(completadas, c => c.Fecha, c => c.Total);
+
+            if (formato == "csv")
+            {
+                var filas = model.Compras.Select(c => new object?[]
+                {
+                    c.IdCompra, c.Fecha, c.Proveedor?.Nombre, c.Proveedor?.Ruc, c.Empleado?.NombreCompleto,
+                    c.Detalles.Sum(d => d.Cantidad), c.Total, c.Estado, c.Observaciones
+                });
+                return ArchivoCsv(["N°", "Fecha", "Proveedor", "RUC/NIT", "Empleado", "Unidades", "Total", "Estado", "Observaciones"], filas, $"compras_{inicio:yyyyMMdd}_{fin:yyyyMMdd}");
+            }
+
+            ViewBag.Proveedores = new SelectList(await context.Proveedores.OrderBy(p => p.Nombre).ToListAsync(), "IdProveedor", "Nombre", idProveedor);
+            return View(model);
+        }
+
+        // ---------- INVENTARIO ----------
+
+        public async Task<IActionResult> Inventario(int? idCategoria, bool soloBajos, bool incluirInactivos, string? formato)
+        {
+            var model = new ReporteInventarioViewModel { IdCategoria = idCategoria, SoloBajos = soloBajos, IncluirInactivos = incluirInactivos };
+
+            var query = context.Productos
+                .AsNoTracking()
+                .Include(p => p.Categoria)
+                .Include(p => p.Proveedor)
+                .AsQueryable();
+
+            if (!incluirInactivos) query = query.Where(p => p.Estado);
+            if (idCategoria.HasValue) query = query.Where(p => p.IdCategoria == idCategoria.Value);
+            if (soloBajos) query = query.Where(p => p.Stock <= p.StockMinimo);
+
+            model.Productos = await query
+                .OrderBy(p => p.Categoria!.Nombre).ThenBy(p => p.Nombre)
+                .ToListAsync();
+
+            model.PorCategoria = model.Productos
+                .GroupBy(p => p.Categoria?.Nombre ?? "—")
+                .Select(g => new ResumenFila { Nombre = g.Key, Cantidad = g.Sum(p => p.Stock), Total = g.Sum(p => p.Stock * p.PrecioCompra) })
+                .OrderByDescending(r => r.Total)
+                .ToList();
+
+            if (formato == "csv")
+            {
+                var filas = model.Productos.Select(p => new object?[]
+                {
+                    p.IdProducto, p.Nombre, p.Categoria?.Nombre, p.Proveedor?.Nombre, p.Stock, p.StockMinimo,
+                    p.PrecioCompra, p.PrecioVenta, p.Stock * p.PrecioCompra, p.Stock * p.PrecioVenta,
+                    p.VerificarStock() ? "OK" : (p.Stock == 0 ? "Sin stock" : "Bajo mínimo"), p.Estado
+                });
+                return ArchivoCsv(["ID", "Producto", "Categoría", "Proveedor", "Stock", "Stock mínimo", "Precio compra", "Precio venta", "Valor a costo", "Valor a venta", "Situación", "Activo"], filas, "inventario");
+            }
+
+            ViewBag.Categorias = new SelectList(await context.Categorias.OrderBy(c => c.Nombre).ToListAsync(), "IdCategoria", "Nombre", idCategoria);
+            return View(model);
+        }
+
+        // ---------- PRODUCTOS VENDIDOS / RENTABILIDAD ----------
+
+        public async Task<IActionResult> Productos(DateTime? desde, DateTime? hasta, int? idCategoria, string orden = "unidades", string? formato = null)
+        {
+            var (inicio, fin, inicioUtc, finUtc) = RangoFechas(desde, hasta);
+            var model = new ReporteProductosViewModel { Desde = inicio, Hasta = fin, IdCategoria = idCategoria, Orden = orden };
+
+            // Solo detalles de ventas completadas dentro del rango
+            var detalles = await context.DetalleVentas
+                .AsNoTracking()
+                .Include(d => d.Producto).ThenInclude(p => p!.Categoria)
+                .Where(d => d.Venta!.Estado == EstadoVenta.Completada
+                         && d.Venta.Fecha >= inicioUtc && d.Venta.Fecha < finUtc)
+                .ToListAsync();
+
+            if (idCategoria.HasValue)
+                detalles = detalles.Where(d => d.Producto!.IdCategoria == idCategoria.Value).ToList();
+
+            var vendidos = detalles
+                .GroupBy(d => d.IdProducto)
+                .Select(g => new FilaProductoVendido
+                {
+                    Producto = g.First().Producto!,
+                    Unidades = g.Sum(d => d.Cantidad),
+                    CantidadVentas = g.Select(d => d.IdVenta).Distinct().Count(),
+                    Ingresos = g.Sum(d => d.Subtotal),
+                    Costo = g.Sum(d => d.Cantidad) * g.First().Producto!.PrecioCompra
+                });
+
+            model.Vendidos = (orden switch
+            {
+                "ingresos" => vendidos.OrderByDescending(v => v.Ingresos),
+                "ganancia" => vendidos.OrderByDescending(v => v.Ganancia),
+                _ => vendidos.OrderByDescending(v => v.Unidades)
+            }).ThenBy(v => v.Producto.Nombre).ToList();
+
+            // Productos activos que no aparecen en ninguna venta del período
+            var idsVendidos = model.Vendidos.Select(v => v.Producto.IdProducto).ToList();
+            var sinVentas = context.Productos.AsNoTracking().Include(p => p.Categoria)
+                .Where(p => p.Estado && !idsVendidos.Contains(p.IdProducto));
+            if (idCategoria.HasValue) sinVentas = sinVentas.Where(p => p.IdCategoria == idCategoria.Value);
+            model.SinVentas = await sinVentas.OrderBy(p => p.Nombre).ToListAsync();
+
+            if (formato == "csv")
+            {
+                var filas = model.Vendidos.Select(v => new object?[]
+                {
+                    v.Producto.IdProducto, v.Producto.Nombre, v.Producto.Categoria?.Nombre, v.Unidades, v.CantidadVentas,
+                    v.Ingresos, v.Costo, v.Ganancia, v.Margen
+                });
+                return ArchivoCsv(["ID", "Producto", "Categoría", "Unidades", "Ventas", "Ingresos", "Costo estimado", "Ganancia", "Margen %"], filas, $"productos_{inicio:yyyyMMdd}_{fin:yyyyMMdd}");
+            }
+
+            ViewBag.Categorias = new SelectList(await context.Categorias.OrderBy(c => c.Nombre).ToListAsync(), "IdCategoria", "Nombre", idCategoria);
+            return View(model);
+        }
+
+        // ---------- CLIENTES ----------
+
+        public async Task<IActionResult> Clientes(DateTime? desde, DateTime? hasta, string? tipoCliente, string? formato)
+        {
+            var (inicio, fin, inicioUtc, finUtc) = RangoFechas(desde, hasta);
+            var model = new ReporteClientesViewModel { Desde = inicio, Hasta = fin, TipoCliente = tipoCliente };
+
+            var ventas = await context.Ventas
+                .AsNoTracking()
+                .Include(v => v.Cliente)
+                .Include(v => v.Detalles)
+                .Where(v => v.Estado == EstadoVenta.Completada
+                         && v.Fecha >= inicioUtc && v.Fecha < finUtc)
+                .ToListAsync();
+
+            if (!string.IsNullOrEmpty(tipoCliente))
+                ventas = ventas.Where(v => v.Cliente?.TipoCliente == tipoCliente).ToList();
+
+            model.Clientes = ventas
+                .GroupBy(v => v.IdCliente)
+                .Select(g => new FilaCliente
+                {
+                    Cliente = g.First().Cliente!,
+                    CantidadCompras = g.Count(),
+                    Unidades = g.Sum(v => v.Detalles.Sum(d => d.Cantidad)),
+                    Total = g.Sum(v => v.Total),
+                    UltimaCompra = g.Max(v => v.Fecha)
+                })
+                .OrderByDescending(c => c.Total)
+                .ToList();
+
+            model.ClientesRegistrados = await context.Clientes.CountAsync();
+            model.ClientesNuevos = await context.Clientes
+                .CountAsync(c => c.FechaCreacion >= inicioUtc && c.FechaCreacion < finUtc);
+
+            if (formato == "csv")
+            {
+                var filas = model.Clientes.Select(c => new object?[]
+                {
+                    c.Cliente.Id, c.Cliente.NombreCompleto, c.Cliente.Email, c.Cliente.Telefono, c.Cliente.TipoCliente,
+                    c.CantidadCompras, c.Unidades, c.Total, c.Promedio, c.UltimaCompra
+                });
+                return ArchivoCsv(["ID", "Cliente", "Email", "Teléfono", "Tipo", "Compras", "Unidades", "Total", "Promedio", "Última compra"], filas, $"clientes_{inicio:yyyyMMdd}_{fin:yyyyMMdd}");
+            }
+
+            return View(model);
+        }
+
+        // ---------- RESUMEN FINANCIERO MENSUAL ----------
+
+        public async Task<IActionResult> Financiero(int? anio, string? formato)
+        {
+            var hoy = Formato.ALocal(DateTime.UtcNow);
+            var model = new ReporteFinancieroViewModel { Anio = anio ?? hoy.Year };
+
+            var inicio = Formato.AUtc(new DateTime(model.Anio, 1, 1));
+            var fin = Formato.AUtc(new DateTime(model.Anio + 1, 1, 1));
+
+            var ventas = await context.Ventas.AsNoTracking()
+                .Where(v => v.Estado == EstadoVenta.Completada && v.Fecha >= inicio && v.Fecha < fin)
+                .Select(v => new { v.Fecha, v.Total })
+                .ToListAsync();
+
+            var compras = await context.Compras.AsNoTracking()
+                .Where(c => c.Estado == EstadoCompra.Completada && c.Fecha >= inicio && c.Fecha < fin)
+                .Select(c => new { c.Fecha, c.Total })
+                .ToListAsync();
+
+            // Los 12 meses del año, aunque no tengan movimientos (así la tabla siempre se ve completa)
+            for (int mes = 1; mes <= 12; mes++)
+            {
+                var vm = ventas.Where(v => Formato.ALocal(v.Fecha).Month == mes).ToList();
+                var cm = compras.Where(c => Formato.ALocal(c.Fecha).Month == mes).ToList();
+                model.Meses.Add(new FilaMes
+                {
+                    Mes = mes,
+                    CantidadVentas = vm.Count,
+                    Ventas = vm.Sum(v => v.Total),
+                    CantidadCompras = cm.Count,
+                    Compras = cm.Sum(c => c.Total)
+                });
+            }
+
+            // Años con movimientos para el combo (siempre incluye el actual)
+            var fechas = await context.Ventas.Select(v => v.Fecha).Union(context.Compras.Select(c => c.Fecha)).ToListAsync();
+            model.Anios = fechas.Select(f => Formato.ALocal(f).Year).Append(hoy.Year).Append(model.Anio)
+                .Distinct().OrderByDescending(a => a).ToList();
+
+            if (formato == "csv")
+            {
+                var filas = model.Meses.Select(m => new object?[]
+                {
+                    m.Nombre, m.CantidadVentas, m.Ventas, m.CantidadCompras, m.Compras, m.Diferencia
+                });
+                return ArchivoCsv(["Mes", "Cant. ventas", "Ventas", "Cant. compras", "Compras", "Diferencia"], filas, $"financiero_{model.Anio}");
+            }
+
+            return View(model);
+        }
+
+        // ---------- AUXILIARES ----------
+
+        // Rango por defecto: desde el primer día del mes actual hasta hoy (en hora local de la tienda).
+        // Devuelve también los límites en UTC para comparar contra la base de datos:
+        // finUtc es el inicio del día siguiente, así el día "hasta" entra completo.
+        private static (DateTime inicio, DateTime fin, DateTime inicioUtc, DateTime finUtc) RangoFechas(DateTime? desde, DateTime? hasta)
+        {
+            var hoy = Formato.ALocal(DateTime.UtcNow).Date;
+            var inicio = (desde ?? new DateTime(hoy.Year, hoy.Month, 1)).Date;
+            var fin = (hasta ?? hoy).Date;
+            if (fin < inicio) (inicio, fin) = (fin, inicio);
+            return (inicio, fin, Formato.AUtc(inicio), Formato.AUtc(fin.AddDays(1)));
+        }
+
+        // Agrupa una lista por una clave (forma de pago, empleado, proveedor...) y suma los importes,
+        // de mayor a menor. Sirve para todos los desgloses de los reportes.
+        private static List<ResumenFila> Agrupar<T>(IEnumerable<T> items, Func<T, string> clave, Func<T, decimal> importe)
+            => items
+                .GroupBy(clave)
+                .Select(g => new ResumenFila { Nombre = g.Key, Cantidad = g.Count(), Total = g.Sum(importe) })
+                .OrderByDescending(f => f.Total)
+                .ToList();
+
+        // Igual que Agrupar pero por día (en hora local), en orden cronológico
+        private static List<ResumenFila> AgruparPorDia<T>(IEnumerable<T> items, Func<T, DateTime> fecha, Func<T, decimal> importe)
+            => items
+                .GroupBy(i => Formato.ALocal(fecha(i)).Date)
+                .OrderBy(g => g.Key)
+                .Select(g => new ResumenFila { Nombre = g.Key.ToString("dd/MM/yyyy"), Cantidad = g.Count(), Total = g.Sum(importe) })
+                .ToList();
+
+        // Devuelve el reporte como archivo CSV para descargar (se abre en Excel)
+        private FileContentResult ArchivoCsv(string[] encabezados, IEnumerable<object?[]> filas, string nombre)
+            => File(Csv.Generar(encabezados, filas), "text/csv; charset=utf-8", $"{nombre}.csv");
+    }
+}
+```
+
+Todas las acciones siguen el mismo patrón:
+
+1. **Leer los filtros** de la URL (`?desde=...&hasta=...&estado=...`). `RangoFechas` completa los
+   que faltan (por defecto: el mes actual) y devuelve los límites en UTC para comparar con la base.
+2. **Consultar** con EF Core aplicando los filtros (`Where`) y trayendo las relaciones necesarias
+   (`Include`).
+3. **Calcular los desgloses en memoria** con LINQ (`GroupBy` + `Sum`) mediante `Agrupar` y
+   `AgruparPorDia`. Se hace en memoria porque las listas ya están cargadas para la tabla de detalle.
+4. Si la URL trae `formato=csv`, devolver un **archivo** (`File(...)`) en vez de la vista. Por eso
+   el botón "Exportar CSV" es simplemente un enlace a la misma URL con ese parámetro.
+
+Reportes disponibles:
+
+- **Ventas**: por rango de fechas, estado y forma de pago. Desglose por estado, forma de pago,
+  empleado y día. Ticket promedio.
+- **Compras**: por rango de fechas, estado y proveedor. Desglose por proveedor, empleado y día.
+- **Inventario**: stock de cada producto valorizado a precio de compra y de venta, por categoría,
+  con filtro "solo bajo el mínimo" e "incluir inactivos".
+- **Productos**: ranking de vendidos (por unidades, ingresos o ganancia), costo estimado con el
+  precio de compra actual, margen, y lista de productos activos que no se vendieron.
+- **Clientes**: ranking por total comprado, clientes nuevos en el período.
+- **Financiero**: ventas completadas vs. compras completadas mes a mes, para un año.
+
 ---
 
 # Parte 8 — Vistas (las pantallas)
@@ -4362,6 +5080,8 @@ vienen de Bootstrap 5. Los íconos (`<i class="bi bi-cart3">`) son de Bootstrap 
                                     <li><a class="dropdown-item" asp-controller="Compras" asp-action="Index"><i class="bi bi-truck"></i> Compras a proveedores</a></li>
                                     <li><a class="dropdown-item" asp-controller="Inventario" asp-action="Index"><i class="bi bi-clipboard-data"></i> Inventario</a></li>
                                     <li><a class="dropdown-item" asp-controller="Productos" asp-action="Manage"><i class="bi bi-box-seam"></i> Productos</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" asp-controller="Reportes" asp-action="Index"><i class="bi bi-bar-chart-line"></i> Reportes</a></li>
                                     @if (esAdmin)
                                     {
                                         <li><hr class="dropdown-divider"></li>
@@ -6652,7 +7372,10 @@ para que ASP.NET arme la lista, y calcula subtotales y total en vivo con los `da
     decimal gastos = ViewBag.GastosCompras;
 }
 
-<h2 class="mb-4"><i class="bi bi-speedometer2"></i> Panel general</h2>
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <h2 class="mb-0"><i class="bi bi-speedometer2"></i> Panel general</h2>
+    <a asp-controller="Reportes" asp-action="Index" class="btn btn-sm btn-warning"><i class="bi bi-bar-chart-line"></i> Ver reportes</a>
+</div>
 
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
@@ -6804,6 +7527,7 @@ para que ASP.NET arme la lista, y calcula subtotales y total en vivo con los `da
                 <a asp-controller="Compras" asp-action="Registrar" class="btn btn-outline-dark"><i class="bi bi-truck"></i> Registrar compra a proveedor</a>
                 <a asp-controller="Compras" asp-action="Index" asp-route-estado="Pendiente" class="btn btn-outline-dark"><i class="bi bi-box-arrow-in-down"></i> Compras por recibir (@ViewBag.ComprasPendientes)</a>
                 <a asp-controller="Productos" asp-action="Create" class="btn btn-outline-dark"><i class="bi bi-plus-lg"></i> Nuevo producto</a>
+                <a asp-controller="Reportes" asp-action="Ventas" class="btn btn-outline-dark"><i class="bi bi-bar-chart-line"></i> Reporte de ventas del mes</a>
             </div>
         </div>
     </div>
@@ -7019,6 +7743,928 @@ para que ASP.NET arme la lista, y calcula subtotales y total en vivo con los `da
 @section Scripts { <partial name="_ValidationScriptsPartial" /> }
 ```
 
+## 8.12b Vistas de reportes (`Views/Reportes/`)
+
+Las vistas de reportes comparten cuatro **parciales** para no repetir código:
+
+- `_Acciones.cshtml`: botones "Exportar CSV" (misma URL + `formato=csv`), "Imprimir / PDF"
+  (`window.print()`) y volver al índice.
+- `_EncabezadoImpresion.cshtml`: encabezado con el nombre de la tienda y los filtros, que solo
+  aparece al imprimir (`d-none d-print-block`).
+- `_RangosRapidos.cshtml`: atajos "Hoy / Esta semana / Este mes / Este año / Todo" que arman la URL
+  con `desde` y `hasta` sin perder los otros filtros.
+- `_Resumen.cshtml`: tabla chica de desglose (nombre, cantidad, total) para una lista de
+  `ResumenFila`; los títulos se pasan por `ViewData`.
+
+Los formularios de filtro usan `method="get"`, así los filtros quedan en la URL y se pueden compartir
+o imprimir. Al imprimir, el CSS `@media print` de `site.css` oculta menú, pie y botones.
+
+`Views/Reportes/_Acciones.cshtml`
+
+```cshtml
+@using Microsoft.Extensions.Primitives
+@{
+    // Misma URL del reporte (con sus filtros) más ?formato=csv para descargar el archivo
+    var pares = Context.Request.Query.Where(q => !q.Key.Equals("formato", StringComparison.OrdinalIgnoreCase)).ToList();
+    pares.Add(new KeyValuePair<string, StringValues>("formato", "csv"));
+    var urlCsv = Context.Request.Path + QueryString.Create(pares).ToUriComponent();
+}
+<div class="btn-group d-print-none">
+    <a href="@urlCsv" class="btn btn-sm btn-outline-success" title="Descargar en formato CSV (se abre con Excel)"><i class="bi bi-file-earmark-spreadsheet"></i> Exportar CSV</a>
+    <button type="button" class="btn btn-sm btn-outline-dark" onclick="window.print()" title="Imprimir o guardar como PDF"><i class="bi bi-printer"></i> Imprimir / PDF</button>
+    <a asp-action="Index" class="btn btn-sm btn-outline-secondary"><i class="bi bi-grid"></i> Todos los reportes</a>
+</div>
+```
+
+`Views/Reportes/_EncabezadoImpresion.cshtml`
+
+```cshtml
+@model string
+@inject IConfiguration config
+@* Solo se ve al imprimir: nombre de la tienda, título del reporte, filtros aplicados y fecha de generación *@
+<div class="d-none d-print-block mb-3 pb-2 border-bottom">
+    <h4 class="mb-0"><i class="bi bi-tools"></i> @(config["Tienda:Nombre"] ?? "Ferretería") — @ViewData["Title"]</h4>
+    <div class="small text-muted">@Model &nbsp;·&nbsp; Generado el @Formato.Fecha(DateTime.UtcNow)</div>
+</div>
+```
+
+`Views/Reportes/_RangosRapidos.cshtml`
+
+```cshtml
+@{
+    // Atajos de fecha (en hora local de la tienda). Mantienen la acción actual y no tocan los otros filtros.
+    var hoy = Formato.ALocal(DateTime.UtcNow).Date;
+    var lunes = hoy.AddDays(-(((int)hoy.DayOfWeek + 6) % 7));
+    var accion = (string)ViewContext.RouteData.Values["action"]!;
+    var otros = Context.Request.Query.Where(q => !new[] { "desde", "hasta", "formato" }.Contains(q.Key, StringComparer.OrdinalIgnoreCase))
+        .ToDictionary(q => q.Key, q => (string?)q.Value.ToString());
+
+    Dictionary<string, string?> Rango(DateTime desde, DateTime hasta)
+    {
+        var d = new Dictionary<string, string?>(otros) { ["desde"] = desde.ToString("yyyy-MM-dd"), ["hasta"] = hasta.ToString("yyyy-MM-dd") };
+        return d;
+    }
+}
+<div class="btn-group btn-group-sm d-print-none" role="group" aria-label="Rangos rápidos">
+    <a asp-action="@accion" asp-all-route-data="@Rango(hoy, hoy)" class="btn btn-outline-secondary">Hoy</a>
+    <a asp-action="@accion" asp-all-route-data="@Rango(lunes, hoy)" class="btn btn-outline-secondary">Esta semana</a>
+    <a asp-action="@accion" asp-all-route-data="@Rango(new DateTime(hoy.Year, hoy.Month, 1), hoy)" class="btn btn-outline-secondary">Este mes</a>
+    <a asp-action="@accion" asp-all-route-data="@Rango(new DateTime(hoy.Year, 1, 1), hoy)" class="btn btn-outline-secondary">Este año</a>
+    <a asp-action="@accion" asp-all-route-data="@Rango(new DateTime(2000, 1, 1), hoy)" class="btn btn-outline-secondary">Todo</a>
+</div>
+```
+
+`Views/Reportes/_Resumen.cshtml`
+
+```cshtml
+@model List<ResumenFila>
+@* Tabla chica de desglose: nombre, cantidad y total. Los títulos vienen por ViewData. *@
+<div class="card shadow-sm h-100">
+    <div class="card-header bg-white"><i class="bi @ViewData["Icono"]"></i> @ViewData["Titulo"]</div>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>@ViewData["Columna"]</th>
+                    <th class="text-center">@ViewData["ColCantidad"]</th>
+                    <th class="text-end">@(ViewData["ColTotal"] ?? "Total")</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var f in Model)
+                {
+                    <tr>
+                        <td>@f.Nombre</td>
+                        <td class="text-center">@f.Cantidad</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(f.Total)</td>
+                    </tr>
+                }
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="3" class="text-center text-muted py-3">Sin datos en este período.</td></tr>
+                }
+            </tbody>
+            @if (Model.Count > 1)
+            {
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td>Total</td>
+                        <td class="text-center">@Model.Sum(f => f.Cantidad)</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(Model.Sum(f => f.Total))</td>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+</div>
+```
+
+`Views/Reportes/Index.cshtml`
+
+```cshtml
+@{
+    ViewData["Title"] = "Reportes";
+}
+
+<h2 class="mb-1"><i class="bi bi-bar-chart-line"></i> Reportes</h2>
+<p class="text-muted mb-4">Cada reporte se puede filtrar, imprimir (o guardar como PDF) y exportar a CSV para abrirlo en Excel.</p>
+
+<div class="row g-4">
+    <div class="col-md-6 col-lg-4">
+        <a asp-action="Ventas" class="card reporte-card shadow-sm border-0 h-100 text-decoration-none text-dark">
+            <div class="card-body d-flex gap-3">
+                <i class="bi bi-receipt text-warning"></i>
+                <div>
+                    <h5 class="card-title mb-1">Ventas</h5>
+                    <p class="card-text small text-muted mb-0">Ventas por período, estado y forma de pago. Desglose por empleado y por día.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a asp-action="Compras" class="card reporte-card shadow-sm border-0 h-100 text-decoration-none text-dark">
+            <div class="card-body d-flex gap-3">
+                <i class="bi bi-truck text-primary"></i>
+                <div>
+                    <h5 class="card-title mb-1">Compras a proveedores</h5>
+                    <p class="card-text small text-muted mb-0">Mercadería comprada por período, estado y proveedor. Desglose por proveedor y por día.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a asp-action="Inventario" class="card reporte-card shadow-sm border-0 h-100 text-decoration-none text-dark">
+            <div class="card-body d-flex gap-3">
+                <i class="bi bi-clipboard-data text-success"></i>
+                <div>
+                    <h5 class="card-title mb-1">Inventario valorizado</h5>
+                    <p class="card-text small text-muted mb-0">Stock actual de cada producto y cuánto vale a precio de compra y de venta. Productos bajo el mínimo.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a asp-action="Productos" class="card reporte-card shadow-sm border-0 h-100 text-decoration-none text-dark">
+            <div class="card-body d-flex gap-3">
+                <i class="bi bi-trophy text-danger"></i>
+                <div>
+                    <h5 class="card-title mb-1">Productos vendidos</h5>
+                    <p class="card-text small text-muted mb-0">Los más vendidos, ingresos y ganancia estimada por producto. Productos que no se vendieron.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a asp-action="Clientes" class="card reporte-card shadow-sm border-0 h-100 text-decoration-none text-dark">
+            <div class="card-body d-flex gap-3">
+                <i class="bi bi-people text-info"></i>
+                <div>
+                    <h5 class="card-title mb-1">Clientes</h5>
+                    <p class="card-text small text-muted mb-0">Ranking de clientes por lo que compraron, cantidad de compras y última compra.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a asp-action="Financiero" class="card reporte-card shadow-sm border-0 h-100 text-decoration-none text-dark">
+            <div class="card-body d-flex gap-3">
+                <i class="bi bi-graph-up-arrow text-dark"></i>
+                <div>
+                    <h5 class="card-title mb-1">Resumen financiero</h5>
+                    <p class="card-text small text-muted mb-0">Ventas cobradas vs. compras pagadas, mes a mes, y la diferencia del año.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+```
+
+`Views/Reportes/Ventas.cshtml`
+
+```cshtml
+@model ReporteVentasViewModel
+@{
+    ViewData["Title"] = "Reporte de ventas";
+    var rango = $"Del {Model.Desde:dd/MM/yyyy} al {Model.Hasta:dd/MM/yyyy}"
+        + (Model.Estado.HasValue ? $" · Estado: {Model.Estado}" : "")
+        + (Model.IdFormaPago.HasValue ? $" · Forma de pago: {((SelectList)ViewBag.FormasPago).FirstOrDefault(f => f.Selected)?.Text}" : "");
+}
+
+<partial name="_EncabezadoImpresion" model="rango" />
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 d-print-none">
+    <h2 class="mb-0"><i class="bi bi-receipt"></i> Reporte de ventas</h2>
+    <partial name="_Acciones" />
+</div>
+
+<form method="get" class="card shadow-sm mb-4 d-print-none">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-6 col-md-2">
+                <label asp-for="Desde" class="form-label mb-1"></label>
+                <input asp-for="Desde" class="form-control form-control-sm" name="desde" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label asp-for="Hasta" class="form-label mb-1"></label>
+                <input asp-for="Hasta" class="form-control form-control-sm" name="hasta" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label asp-for="Estado" class="form-label mb-1"></label>
+                <select asp-for="Estado" name="estado" class="form-select form-select-sm" asp-items="Html.GetEnumSelectList<EstadoVenta>()">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label asp-for="IdFormaPago" class="form-label mb-1"></label>
+                <select asp-for="IdFormaPago" name="idFormaPago" class="form-select form-select-sm" asp-items="ViewBag.FormasPago">
+                    <option value="">Todas</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-dark"><i class="bi bi-funnel"></i> Filtrar</button>
+                <a asp-action="Ventas" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+            </div>
+        </div>
+        <div class="mt-2"><partial name="_RangosRapidos" /></div>
+    </div>
+</form>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Ventas en el período</div><div class="kpi-valor">@Model.CantidadVentas</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Completadas</div><div class="kpi-valor">@Model.CantidadCompletadas</div></div></div>
+    <div class="col-6 col-md-4 col-xl-3"><div class="kpi"><div class="kpi-label">Total cobrado</div><div class="kpi-valor text-success">@Formato.Precio(Model.TotalCompletadas)</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Pendiente de cobro</div><div class="kpi-valor text-warning">@Formato.Precio(Model.TotalPendientes)</div></div></div>
+    <div class="col-6 col-md-4 col-xl-1"><div class="kpi"><div class="kpi-label">Unidades</div><div class="kpi-valor">@Model.UnidadesVendidas</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Ticket promedio</div><div class="kpi-valor">@Formato.Precio(Model.TicketPromedio)</div></div></div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6 col-xl-3">
+        <partial name="_Resumen" model="Model.PorEstado" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Por estado", ["Icono"] = "bi-flag", ["Columna"] = "Estado", ["ColCantidad"] = "Ventas" }' />
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <partial name="_Resumen" model="Model.PorFormaPago" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Por forma de pago (completadas)", ["Icono"] = "bi-credit-card", ["Columna"] = "Forma de pago", ["ColCantidad"] = "Ventas" }' />
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <partial name="_Resumen" model="Model.PorEmpleado" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Por empleado (completadas)", ["Icono"] = "bi-person-badge", ["Columna"] = "Empleado", ["ColCantidad"] = "Ventas" }' />
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <partial name="_Resumen" model="Model.PorDia" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Por día (completadas)", ["Icono"] = "bi-calendar3", ["Columna"] = "Día", ["ColCantidad"] = "Ventas" }' />
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white"><i class="bi bi-list-ul"></i> Detalle de ventas <span class="text-muted small">(@Model.CantidadVentas)</span></div>
+    <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>N°</th>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th>Empleado</th>
+                    <th>Pago</th>
+                    <th class="text-center">Unid.</th>
+                    <th class="text-end">Total</th>
+                    <th class="text-center">Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var v in Model.Ventas)
+                {
+                    <tr>
+                        <td><a asp-controller="Ventas" asp-action="Details" asp-route-id="@v.IdVenta" class="fw-bold text-decoration-none">#@v.IdVenta</a></td>
+                        <td>@Formato.Fecha(v.Fecha)</td>
+                        <td>@v.Cliente?.NombreCompleto <small class="text-muted d-print-none">@v.Cliente?.Email</small></td>
+                        <td class="small">@(v.Empleado?.NombreCompleto ?? "—")</td>
+                        <td class="small">@v.FormaPago?.Nombre</td>
+                        <td class="text-center">@v.Detalles.Sum(d => d.Cantidad)</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(v.Total)</td>
+                        <td class="text-center"><span class="badge @Formato.EstadoBadge(v.Estado)">@v.Estado</span></td>
+                    </tr>
+                }
+                @if (Model.Ventas.Count == 0)
+                {
+                    <tr><td colspan="8" class="text-center text-muted py-4">No hay ventas en este período.</td></tr>
+                }
+            </tbody>
+            @if (Model.Ventas.Count > 0)
+            {
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="5">Total completadas (@Model.CantidadCompletadas)</td>
+                        <td class="text-center">@Model.UnidadesVendidas</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(Model.TotalCompletadas)</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+</div>
+```
+
+`Views/Reportes/Compras.cshtml`
+
+```cshtml
+@model ReporteComprasViewModel
+@{
+    ViewData["Title"] = "Reporte de compras";
+    var rango = $"Del {Model.Desde:dd/MM/yyyy} al {Model.Hasta:dd/MM/yyyy}"
+        + (Model.Estado.HasValue ? $" · Estado: {Model.Estado}" : "")
+        + (Model.IdProveedor.HasValue ? $" · Proveedor: {((SelectList)ViewBag.Proveedores).FirstOrDefault(p => p.Selected)?.Text}" : "");
+}
+
+<partial name="_EncabezadoImpresion" model="rango" />
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 d-print-none">
+    <h2 class="mb-0"><i class="bi bi-truck"></i> Reporte de compras a proveedores</h2>
+    <partial name="_Acciones" />
+</div>
+
+<form method="get" class="card shadow-sm mb-4 d-print-none">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-6 col-md-2">
+                <label asp-for="Desde" class="form-label mb-1"></label>
+                <input asp-for="Desde" class="form-control form-control-sm" name="desde" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label asp-for="Hasta" class="form-label mb-1"></label>
+                <input asp-for="Hasta" class="form-control form-control-sm" name="hasta" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label asp-for="Estado" class="form-label mb-1"></label>
+                <select asp-for="Estado" name="estado" class="form-select form-select-sm" asp-items="Html.GetEnumSelectList<EstadoCompra>()">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label asp-for="IdProveedor" class="form-label mb-1"></label>
+                <select asp-for="IdProveedor" name="idProveedor" class="form-select form-select-sm" asp-items="ViewBag.Proveedores">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-dark"><i class="bi bi-funnel"></i> Filtrar</button>
+                <a asp-action="Compras" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+            </div>
+        </div>
+        <div class="mt-2"><partial name="_RangosRapidos" /></div>
+    </div>
+</form>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Compras en el período</div><div class="kpi-valor">@Model.CantidadCompras</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Completadas</div><div class="kpi-valor">@Model.CantidadCompletadas</div></div></div>
+    <div class="col-6 col-md-4 col-xl-3"><div class="kpi"><div class="kpi-label">Total pagado</div><div class="kpi-valor text-danger">@Formato.Precio(Model.TotalCompletadas)</div></div></div>
+    <div class="col-6 col-md-4 col-xl-3"><div class="kpi"><div class="kpi-label">Pendiente de recibir</div><div class="kpi-valor text-warning">@Formato.Precio(Model.TotalPendientes)</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Unidades recibidas</div><div class="kpi-valor">@Model.UnidadesCompradas</div></div></div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6 col-xl-3">
+        <partial name="_Resumen" model="Model.PorEstado" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Por estado", ["Icono"] = "bi-flag", ["Columna"] = "Estado", ["ColCantidad"] = "Compras" }' />
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <partial name="_Resumen" model="Model.PorProveedor" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Por proveedor (completadas)", ["Icono"] = "bi-building", ["Columna"] = "Proveedor", ["ColCantidad"] = "Compras" }' />
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <partial name="_Resumen" model="Model.PorEmpleado" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Por empleado (completadas)", ["Icono"] = "bi-person-badge", ["Columna"] = "Empleado", ["ColCantidad"] = "Compras" }' />
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <partial name="_Resumen" model="Model.PorDia" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Por día (completadas)", ["Icono"] = "bi-calendar3", ["Columna"] = "Día", ["ColCantidad"] = "Compras" }' />
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white"><i class="bi bi-list-ul"></i> Detalle de compras <span class="text-muted small">(@Model.CantidadCompras)</span></div>
+    <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>N°</th>
+                    <th>Fecha</th>
+                    <th>Proveedor</th>
+                    <th>Empleado</th>
+                    <th class="text-center">Unid.</th>
+                    <th class="text-end">Total</th>
+                    <th class="text-center">Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var c in Model.Compras)
+                {
+                    <tr>
+                        <td><a asp-controller="Compras" asp-action="Details" asp-route-id="@c.IdCompra" class="fw-bold text-decoration-none">#@c.IdCompra</a></td>
+                        <td>@Formato.Fecha(c.Fecha)</td>
+                        <td>@c.Proveedor?.Nombre <small class="text-muted">@c.Proveedor?.Ruc</small></td>
+                        <td class="small">@c.Empleado?.NombreCompleto</td>
+                        <td class="text-center">@c.Detalles.Sum(d => d.Cantidad)</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(c.Total)</td>
+                        <td class="text-center"><span class="badge @Formato.EstadoBadge(c.Estado)">@c.Estado</span></td>
+                    </tr>
+                }
+                @if (Model.Compras.Count == 0)
+                {
+                    <tr><td colspan="7" class="text-center text-muted py-4">No hay compras en este período.</td></tr>
+                }
+            </tbody>
+            @if (Model.Compras.Count > 0)
+            {
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="4">Total completadas (@Model.CantidadCompletadas)</td>
+                        <td class="text-center">@Model.UnidadesCompradas</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(Model.TotalCompletadas)</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+</div>
+```
+
+`Views/Reportes/Inventario.cshtml`
+
+```cshtml
+@model ReporteInventarioViewModel
+@{
+    ViewData["Title"] = "Reporte de inventario";
+    var filtros = "Stock al " + Formato.Fecha(DateTime.UtcNow)
+        + (Model.IdCategoria.HasValue ? $" · Categoría: {((SelectList)ViewBag.Categorias).FirstOrDefault(c => c.Selected)?.Text}" : "")
+        + (Model.SoloBajos ? " · Solo bajo el mínimo" : "")
+        + (Model.IncluirInactivos ? " · Incluye inactivos" : "");
+}
+
+<partial name="_EncabezadoImpresion" model="filtros" />
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 d-print-none">
+    <h2 class="mb-0"><i class="bi bi-clipboard-data"></i> Reporte de inventario valorizado</h2>
+    <partial name="_Acciones" />
+</div>
+
+<form method="get" class="card shadow-sm mb-4 d-print-none">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-4">
+                <label asp-for="IdCategoria" class="form-label mb-1"></label>
+                <select asp-for="IdCategoria" name="idCategoria" class="form-select form-select-sm" asp-items="ViewBag.Categorias">
+                    <option value="">Todas</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="form-check">
+                    <input asp-for="SoloBajos" name="soloBajos" class="form-check-input" value="true" />
+                    <label asp-for="SoloBajos" class="form-check-label"></label>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="form-check">
+                    <input asp-for="IncluirInactivos" name="incluirInactivos" class="form-check-input" value="true" />
+                    <label asp-for="IncluirInactivos" class="form-check-label"></label>
+                </div>
+            </div>
+            <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-dark"><i class="bi bi-funnel"></i> Filtrar</button>
+                <a asp-action="Inventario" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Productos</div><div class="kpi-valor">@Model.CantidadProductos</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Unidades en stock</div><div class="kpi-valor">@Model.UnidadesTotales</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Valor a costo</div><div class="kpi-valor">@Formato.Precio(Model.ValorCosto)</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Valor a precio de venta</div><div class="kpi-valor text-success">@Formato.Precio(Model.ValorVenta)</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Ganancia potencial</div><div class="kpi-valor text-primary">@Formato.Precio(Model.GananciaPotencial)</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Bajo mínimo / sin stock</div><div class="kpi-valor"><span class="text-warning">@Model.ProductosBajoMinimo</span> / <span class="text-danger">@Model.ProductosSinStock</span></div></div></div>
+</div>
+
+<div class="row g-4">
+    <div class="col-xl-4">
+        <partial name="_Resumen" model="Model.PorCategoria" view-data='new ViewDataDictionary(ViewData) { ["Titulo"] = "Valor del stock por categoría", ["Icono"] = "bi-tags", ["Columna"] = "Categoría", ["ColCantidad"] = "Unidades", ["ColTotal"] = "Valor a costo" }' />
+    </div>
+    <div class="col-xl-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white"><i class="bi bi-list-ul"></i> Detalle por producto <span class="text-muted small">(@Model.CantidadProductos)</span></div>
+            <div class="table-responsive">
+                <table class="table table-hover table-sm align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Producto</th>
+                            <th>Categoría</th>
+                            <th class="text-center">Stock</th>
+                            <th class="text-center">Mín.</th>
+                            <th class="text-end">P. compra</th>
+                            <th class="text-end">P. venta</th>
+                            <th class="text-end">Valor a costo</th>
+                            <th class="text-end">Valor a venta</th>
+                            <th class="text-center">Situación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Model.Productos)
+                        {
+                            <tr class="@(p.Estado ? "" : "text-muted")">
+                                <td>
+                                    <a asp-controller="Productos" asp-action="Details" asp-route-id="@p.IdProducto" class="text-decoration-none text-reset">@p.Nombre</a>
+                                    @if (!p.Estado) { <span class="badge bg-secondary">Inactivo</span> }
+                                    <br /><small class="text-muted">@p.Proveedor?.Nombre</small>
+                                </td>
+                                <td class="small">@p.Categoria?.Nombre</td>
+                                <td class="text-center fw-bold">@p.Stock</td>
+                                <td class="text-center">@p.StockMinimo</td>
+                                <td class="text-end text-nowrap">@Formato.Precio(p.PrecioCompra)</td>
+                                <td class="text-end text-nowrap">@Formato.Precio(p.PrecioVenta)</td>
+                                <td class="text-end text-nowrap">@Formato.Precio(p.Stock * p.PrecioCompra)</td>
+                                <td class="text-end text-nowrap">@Formato.Precio(p.Stock * p.PrecioVenta)</td>
+                                <td class="text-center">
+                                    @if (p.Stock == 0)
+                                    {
+                                        <span class="badge bg-danger">Sin stock</span>
+                                    }
+                                    else if (!p.VerificarStock())
+                                    {
+                                        <span class="badge bg-warning text-dark">Bajo mínimo</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">OK</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        @if (Model.Productos.Count == 0)
+                        {
+                            <tr><td colspan="9" class="text-center text-muted py-4">No hay productos con esos filtros.</td></tr>
+                        }
+                    </tbody>
+                    @if (Model.Productos.Count > 0)
+                    {
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td colspan="2">Total</td>
+                                <td class="text-center">@Model.UnidadesTotales</td>
+                                <td colspan="3"></td>
+                                <td class="text-end text-nowrap">@Formato.Precio(Model.ValorCosto)</td>
+                                <td class="text-end text-nowrap">@Formato.Precio(Model.ValorVenta)</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    }
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+```
+
+`Views/Reportes/Productos.cshtml`
+
+```cshtml
+@model ReporteProductosViewModel
+@{
+    ViewData["Title"] = "Reporte de productos vendidos";
+    var rango = $"Del {Model.Desde:dd/MM/yyyy} al {Model.Hasta:dd/MM/yyyy} (ventas completadas)"
+        + (Model.IdCategoria.HasValue ? $" · Categoría: {((SelectList)ViewBag.Categorias).FirstOrDefault(c => c.Selected)?.Text}" : "");
+    var ordenes = new List<SelectListItem>
+    {
+        new("Unidades vendidas", "unidades"), new("Ingresos", "ingresos"), new("Ganancia", "ganancia")
+    };
+}
+
+<partial name="_EncabezadoImpresion" model="rango" />
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 d-print-none">
+    <h2 class="mb-0"><i class="bi bi-trophy"></i> Reporte de productos vendidos</h2>
+    <partial name="_Acciones" />
+</div>
+
+<form method="get" class="card shadow-sm mb-4 d-print-none">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-6 col-md-2">
+                <label asp-for="Desde" class="form-label mb-1"></label>
+                <input asp-for="Desde" class="form-control form-control-sm" name="desde" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label asp-for="Hasta" class="form-label mb-1"></label>
+                <input asp-for="Hasta" class="form-control form-control-sm" name="hasta" />
+            </div>
+            <div class="col-6 col-md-3">
+                <label asp-for="IdCategoria" class="form-label mb-1"></label>
+                <select asp-for="IdCategoria" name="idCategoria" class="form-select form-select-sm" asp-items="ViewBag.Categorias">
+                    <option value="">Todas</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label asp-for="Orden" class="form-label mb-1"></label>
+                <select asp-for="Orden" name="orden" class="form-select form-select-sm" asp-items="ordenes"></select>
+            </div>
+            <div class="col-12 col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-dark"><i class="bi bi-funnel"></i> Filtrar</button>
+                <a asp-action="Productos" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+            </div>
+        </div>
+        <div class="mt-2"><partial name="_RangosRapidos" /></div>
+    </div>
+</form>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Productos vendidos</div><div class="kpi-valor">@Model.Vendidos.Count</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Unidades</div><div class="kpi-valor">@Model.UnidadesTotales</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Ingresos</div><div class="kpi-valor text-success">@Formato.Precio(Model.IngresosTotales)</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Costo estimado</div><div class="kpi-valor text-danger">@Formato.Precio(Model.CostoTotal)</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Ganancia estimada</div><div class="kpi-valor text-primary">@Formato.Precio(Model.GananciaTotal)</div></div></div>
+    <div class="col-6 col-md-4 col-xl-2"><div class="kpi"><div class="kpi-label">Margen promedio</div><div class="kpi-valor">@Model.MargenPromedio.ToString("N1") %</div></div></div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-trophy"></i> Ranking de productos <span class="text-muted small">(@Model.Vendidos.Count)</span></span>
+        <small class="text-muted">Costo y ganancia estimados con el precio de compra actual de cada producto</small>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Producto</th>
+                    <th>Categoría</th>
+                    <th class="text-center">Unidades</th>
+                    <th class="text-center">Ventas</th>
+                    <th class="text-end">Ingresos</th>
+                    <th class="text-end">Costo</th>
+                    <th class="text-end">Ganancia</th>
+                    <th class="text-end">Margen</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{ int pos = 0; }
+                @foreach (var v in Model.Vendidos)
+                {
+                    pos++;
+                    <tr>
+                        <td class="text-muted">@pos</td>
+                        <td>
+                            <img src="@(v.Producto.ImagenUrl ?? "/images/default-product.png")" class="thumb me-1 d-print-none" style="width:32px;height:32px" alt="" />
+                            <a asp-controller="Productos" asp-action="Details" asp-route-id="@v.Producto.IdProducto" class="text-decoration-none text-reset">@v.Producto.Nombre</a>
+                        </td>
+                        <td class="small">@v.Producto.Categoria?.Nombre</td>
+                        <td class="text-center fw-bold">@v.Unidades</td>
+                        <td class="text-center">@v.CantidadVentas</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(v.Ingresos)</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(v.Costo)</td>
+                        <td class="text-end @(v.Ganancia < 0 ? "text-danger" : "text-success")">@Formato.Precio(v.Ganancia)</td>
+                        <td class="text-end">@v.Margen.ToString("N1") %</td>
+                    </tr>
+                }
+                @if (Model.Vendidos.Count == 0)
+                {
+                    <tr><td colspan="9" class="text-center text-muted py-4">No hay ventas completadas en este período.</td></tr>
+                }
+            </tbody>
+            @if (Model.Vendidos.Count > 0)
+            {
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="3">Total</td>
+                        <td class="text-center">@Model.UnidadesTotales</td>
+                        <td></td>
+                        <td class="text-end text-nowrap">@Formato.Precio(Model.IngresosTotales)</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(Model.CostoTotal)</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(Model.GananciaTotal)</td>
+                        <td class="text-end">@Model.MargenPromedio.ToString("N1") %</td>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white"><i class="bi bi-emoji-neutral"></i> Productos activos sin ventas en el período <span class="text-muted small">(@Model.SinVentas.Count)</span></div>
+    <div class="card-body">
+        @if (Model.SinVentas.Count == 0)
+        {
+            <p class="text-muted mb-0">Todos los productos activos tuvieron al menos una venta.</p>
+        }
+        else
+        {
+            <div class="d-flex flex-wrap gap-2">
+                @foreach (var p in Model.SinVentas)
+                {
+                    <span class="badge bg-light text-dark border">@p.Nombre <small class="text-muted">· stock @p.Stock</small></span>
+                }
+            </div>
+        }
+    </div>
+</div>
+```
+
+`Views/Reportes/Clientes.cshtml`
+
+```cshtml
+@model ReporteClientesViewModel
+@{
+    ViewData["Title"] = "Reporte de clientes";
+    var rango = $"Del {Model.Desde:dd/MM/yyyy} al {Model.Hasta:dd/MM/yyyy} (ventas completadas)"
+        + (!string.IsNullOrEmpty(Model.TipoCliente) ? $" · Tipo: {Model.TipoCliente}" : "");
+    var tipos = new List<SelectListItem> { new("Regular", "Regular"), new("Mayorista", "Mayorista") };
+}
+
+<partial name="_EncabezadoImpresion" model="rango" />
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 d-print-none">
+    <h2 class="mb-0"><i class="bi bi-people"></i> Reporte de clientes</h2>
+    <partial name="_Acciones" />
+</div>
+
+<form method="get" class="card shadow-sm mb-4 d-print-none">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-6 col-md-2">
+                <label asp-for="Desde" class="form-label mb-1"></label>
+                <input asp-for="Desde" class="form-control form-control-sm" name="desde" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label asp-for="Hasta" class="form-label mb-1"></label>
+                <input asp-for="Hasta" class="form-control form-control-sm" name="hasta" />
+            </div>
+            <div class="col-6 col-md-3">
+                <label asp-for="TipoCliente" class="form-label mb-1"></label>
+                <select asp-for="TipoCliente" name="tipoCliente" class="form-select form-select-sm" asp-items="tipos">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-dark"><i class="bi bi-funnel"></i> Filtrar</button>
+                <a asp-action="Clientes" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+            </div>
+        </div>
+        <div class="mt-2"><partial name="_RangosRapidos" /></div>
+    </div>
+</form>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="kpi"><div class="kpi-label">Clientes registrados</div><div class="kpi-valor">@Model.ClientesRegistrados</div></div></div>
+    <div class="col-6 col-md-3"><div class="kpi"><div class="kpi-label">Nuevos en el período</div><div class="kpi-valor text-primary">@Model.ClientesNuevos</div></div></div>
+    <div class="col-6 col-md-3"><div class="kpi"><div class="kpi-label">Compraron en el período</div><div class="kpi-valor">@Model.ClientesQueCompraron</div></div></div>
+    <div class="col-6 col-md-3"><div class="kpi"><div class="kpi-label">Total vendido</div><div class="kpi-valor text-success">@Formato.Precio(Model.TotalVendido)</div></div></div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white"><i class="bi bi-award"></i> Ranking de clientes <span class="text-muted small">(@Model.ClientesQueCompraron)</span></div>
+    <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Cliente</th>
+                    <th>Contacto</th>
+                    <th class="text-center">Tipo</th>
+                    <th class="text-center">Compras</th>
+                    <th class="text-center">Unidades</th>
+                    <th class="text-end">Total</th>
+                    <th class="text-end">Promedio</th>
+                    <th>Última compra</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{ int pos = 0; }
+                @foreach (var c in Model.Clientes)
+                {
+                    pos++;
+                    <tr>
+                        <td class="text-muted">@pos</td>
+                        <td class="fw-bold">@c.Cliente.NombreCompleto</td>
+                        <td class="small">@c.Cliente.Email<br />@c.Cliente.Telefono</td>
+                        <td class="text-center"><span class="badge @(c.Cliente.TipoCliente == "Mayorista" ? "bg-primary" : "bg-secondary")">@c.Cliente.TipoCliente</span></td>
+                        <td class="text-center">@c.CantidadCompras</td>
+                        <td class="text-center">@c.Unidades</td>
+                        <td class="text-end fw-bold">@Formato.Precio(c.Total)</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(c.Promedio)</td>
+                        <td class="small">@Formato.Fecha(c.UltimaCompra)</td>
+                    </tr>
+                }
+                @if (Model.Clientes.Count == 0)
+                {
+                    <tr><td colspan="9" class="text-center text-muted py-4">Ningún cliente compró en este período.</td></tr>
+                }
+            </tbody>
+            @if (Model.Clientes.Count > 0)
+            {
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="4">Total</td>
+                        <td class="text-center">@Model.Clientes.Sum(c => c.CantidadCompras)</td>
+                        <td class="text-center">@Model.Clientes.Sum(c => c.Unidades)</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(Model.TotalVendido)</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+</div>
+```
+
+`Views/Reportes/Financiero.cshtml`
+
+```cshtml
+@model ReporteFinancieroViewModel
+@{
+    ViewData["Title"] = "Resumen financiero";
+    var anios = new SelectList(Model.Anios, Model.Anio);
+}
+
+<partial name="_EncabezadoImpresion" model="@($"Año {Model.Anio} · Ventas completadas vs. compras completadas")" />
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 d-print-none">
+    <h2 class="mb-0"><i class="bi bi-graph-up-arrow"></i> Resumen financiero @Model.Anio</h2>
+    <partial name="_Acciones" />
+</div>
+
+<form method="get" class="card shadow-sm mb-4 d-print-none">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-6 col-md-2">
+                <label asp-for="Anio" class="form-label mb-1"></label>
+                <select asp-for="Anio" name="anio" class="form-select form-select-sm" asp-items="anios"></select>
+            </div>
+            <div class="col-6 col-md-2">
+                <button type="submit" class="btn btn-sm btn-dark"><i class="bi bi-funnel"></i> Ver año</button>
+            </div>
+            <div class="col-12 col-md-8 text-md-end small text-muted">
+                Ventas = ventas completadas (cobradas). Compras = compras completadas (mercadería recibida y pagada).
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="kpi"><div class="kpi-label">Ventas del año (@Model.CantidadVentas)</div><div class="kpi-valor text-success">@Formato.Precio(Model.TotalVentas)</div></div></div>
+    <div class="col-6 col-md-3"><div class="kpi"><div class="kpi-label">Compras del año (@Model.CantidadCompras)</div><div class="kpi-valor text-danger">@Formato.Precio(Model.TotalCompras)</div></div></div>
+    <div class="col-6 col-md-3"><div class="kpi"><div class="kpi-label">Diferencia (ventas − compras)</div><div class="kpi-valor @(Model.Diferencia < 0 ? "text-danger" : "text-primary")">@Formato.Precio(Model.Diferencia)</div></div></div>
+    <div class="col-6 col-md-3"><div class="kpi"><div class="kpi-label">Promedio mensual de ventas</div><div class="kpi-valor">@Formato.Precio(Model.TotalVentas / 12)</div></div></div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white">
+        <i class="bi bi-calendar3"></i> Mes a mes
+        <span class="ms-3 small"><span class="badge bg-success">&nbsp;</span> Ventas &nbsp; <span class="badge bg-danger">&nbsp;</span> Compras</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Mes</th>
+                    <th style="min-width: 180px">Comparación</th>
+                    <th class="text-center">Cant. ventas</th>
+                    <th class="text-end">Ventas</th>
+                    <th class="text-center">Cant. compras</th>
+                    <th class="text-end">Compras</th>
+                    <th class="text-end">Diferencia</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in Model.Meses)
+                {
+                    var sinMovimientos = m.CantidadVentas == 0 && m.CantidadCompras == 0;
+                    var anchoVentas = Model.MayorMonto == 0 ? 0 : (int)(m.Ventas / Model.MayorMonto * 100);
+                    var anchoCompras = Model.MayorMonto == 0 ? 0 : (int)(m.Compras / Model.MayorMonto * 100);
+                    <tr class="@(sinMovimientos ? "text-muted" : "")">
+                        <td class="fw-bold">@m.Nombre</td>
+                        <td>
+                            <div class="barra mb-1"><div class="bg-success" style="width: @anchoVentas%"></div></div>
+                            <div class="barra"><div class="bg-danger" style="width: @anchoCompras%"></div></div>
+                        </td>
+                        <td class="text-center">@m.CantidadVentas</td>
+                        <td class="text-end text-success">@Formato.Precio(m.Ventas)</td>
+                        <td class="text-center">@m.CantidadCompras</td>
+                        <td class="text-end text-danger">@Formato.Precio(m.Compras)</td>
+                        <td class="text-end fw-bold @(m.Diferencia < 0 ? "text-danger" : "")">@Formato.Precio(m.Diferencia)</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot class="table-light fw-bold">
+                <tr>
+                    <td colspan="2">Total @Model.Anio</td>
+                    <td class="text-center">@Model.CantidadVentas</td>
+                    <td class="text-end text-success">@Formato.Precio(Model.TotalVentas)</td>
+                    <td class="text-center">@Model.CantidadCompras</td>
+                    <td class="text-end text-danger">@Formato.Precio(Model.TotalCompras)</td>
+                    <td class="text-end @(Model.Diferencia < 0 ? "text-danger" : "")">@Formato.Precio(Model.Diferencia)</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+```
+
 ## 8.13 `wwwroot/css/site.css` — estilos propios
 
 `wwwroot/css/site.css`
@@ -7140,6 +8786,66 @@ body {
 .form-auth {
   max-width: 480px;
   margin: 0 auto;
+}
+
+/* ---- Reportes ---- */
+.kpi {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: .5rem;
+  padding: .75rem 1rem;
+  height: 100%;
+}
+
+.kpi .kpi-label {
+  font-size: .75rem;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.kpi .kpi-valor {
+  white-space: nowrap;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.reporte-card {
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.reporte-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15) !important;
+}
+
+.reporte-card .bi {
+  font-size: 2.2rem;
+}
+
+/* Barras del resumen financiero */
+.barra {
+  height: 10px;
+  border-radius: 5px;
+  background: #e9ecef;
+  overflow: hidden;
+}
+
+.barra > div {
+  height: 100%;
+}
+
+/* Al imprimir: sin barra de navegación, pie ni botones; tablas completas y en blanco */
+@media print {
+  header, footer, .d-print-none { display: none !important; }
+  body { background: #fff; font-size: 12px; }
+  .container { max-width: 100% !important; }
+  main { padding: 0 !important; }
+  .card { border: 1px solid #ccc !important; box-shadow: none !important; break-inside: avoid; }
+  .table-responsive { overflow: visible !important; }
+  a { color: inherit !important; text-decoration: none !important; }
+  .row > * { break-inside: avoid; }
 }
 ```
 
@@ -7279,15 +8985,18 @@ en **Gestión → Usuarios y empleados**.
     "no puede quedar negativo".
 14. **Inventario**: filtrar "Bajo mínimo", **ajustar** el stock de un producto tras un recuento.
 15. **Productos**: crear uno nuevo (con categoría, proveedor, precios, stock, imagen) y editarlo.
-16. Intentar entrar a **Categorías** o **Usuarios**: *Acceso denegado* (son solo de Admin).
+16. **Reportes**: abrir *Ventas* con el atajo "Todo", cambiar filtros, **Exportar CSV** (abrirlo en
+    Excel) e **Imprimir / PDF**. Revisar *Inventario valorizado*, *Productos vendidos* (ganancia
+    estimada) y *Resumen financiero* del año.
+17. Intentar entrar a **Categorías** o **Usuarios**: *Acceso denegado* (son solo de Admin).
 
 **Como administrador** (`juan@gmail.com` / `Juan1234`)
 
-17. **Categorías**, **Proveedores** y **Formas de pago**: crear, editar y "eliminar" una que esté en
+18. **Categorías**, **Proveedores** y **Formas de pago**: crear, editar y "eliminar" una que esté en
     uso (se desactiva; una categoría desactivada oculta sus productos del catálogo).
-18. **Usuarios y empleados**: crear un empleado, hacerlo Admin y volver a Empleado, desactivar al
+19. **Usuarios y empleados**: crear un empleado, hacerlo Admin y volver a Empleado, desactivar al
     cliente registrado (ya no puede iniciar sesión) y reactivarlo, cambiarlo a Mayorista.
-19. **Eliminar producto**: uno sin movimientos se borra (con su inventario); uno vendido se desactiva.
+20. **Eliminar producto**: uno sin movimientos se borra (con su inventario); uno vendido se desactiva.
 
 ---
 
@@ -7364,7 +9073,8 @@ services:
     name: ferreteria-app
     runtime: docker
     plan: free
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./FerreteriaApp/Dockerfile
+    dockerContext: ./FerreteriaApp
     healthCheckPath: /
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
@@ -7578,6 +9288,21 @@ timeout; el pooler tiene IPv4 y administra las conexiones.
 **¿Por qué `DateTime.UtcNow`?** El servidor de Render está en otra zona horaria; se guarda en UTC y
 se convierte a la hora local solo al mostrar (`Formato.Fecha`).
 
+**¿Cómo funcionan los reportes?** Cada reporte es una acción de `ReportesController` que lee los
+filtros de la URL, consulta con EF Core y calcula totales y desgloses con LINQ (`GroupBy`, `Sum`).
+Los resultados van a un ViewModel (`ReporteVentasViewModel`, etc.) que la vista muestra. No hay
+tablas nuevas: los reportes solo leen las que ya existen.
+
+**¿Cómo se exporta a Excel sin paquetes extra?** Generando un **CSV** (`Helpers/Csv.cs`): texto plano
+con una fila por línea y `;` entre columnas, que Excel abre directo. La misma acción devuelve la vista
+o el archivo según llegue `?formato=csv`. Para PDF se usa "Imprimir" del navegador con estilos
+`@media print` que ocultan menú y botones.
+
+**¿Por qué los filtros de fecha convierten a UTC?** Porque la base guarda UTC, pero el usuario piensa
+en días de su zona horaria. `Formato.AUtc` convierte "desde el 1/9 a las 00:00 hora local" al
+instante UTC correspondiente, y el límite superior es el inicio del día siguiente (`< finUtc`) para
+que el día "hasta" entre completo.
+
 ---
 
 # Anexo A — README.md del proyecto
@@ -7624,6 +9349,9 @@ detalle y forma de pago, y compras a proveedores con detalle.
   stock y actualiza el precio de compra). No se permite cancelar una compra si dejaría stock negativo.
 - **Inventario**: stock actual, mínimo, última actualización, filtro "bajo mínimo" y ajuste manual.
 - Crear y editar **productos** (con subida de imagen).
+- **Reportes** (menú Gestión → Reportes): ventas, compras a proveedores, inventario valorizado,
+  productos vendidos con ganancia estimada, ranking de clientes y resumen financiero mensual.
+  Todos con filtros (fechas, estado, categoría...), botón **Imprimir / PDF** y **Exportar CSV** (Excel).
 
 #### Administrador (rol `Admin`)
 - Todo lo del empleado, más: **categorías**, **proveedores**, **formas de pago**, eliminar productos,
@@ -7674,7 +9402,8 @@ FerreteriaApp/
 │   ├── VentasController.cs        Checkout web, mis compras, venta de mostrador, gestión de estados
 │   ├── ComprasController.cs       Compras a proveedores y su ingreso al stock
 │   ├── InventarioController.cs    Inventario y ajustes manuales
-│   └── AdminController.cs         Panel general, usuarios y empleados
+│   ├── AdminController.cs         Panel general, usuarios y empleados
+│   └── ReportesController.cs      Reportes (ventas, compras, inventario, productos, clientes, financiero) + CSV
 ├── Models/
 │   ├── Usuario.cs                 Base de Identity (int) + nombre, apellido, estado, fechaCreacion
 │   ├── Rol.cs                     Rol de Identity (int) + descripción
@@ -7683,17 +9412,19 @@ FerreteriaApp/
 │   ├── Venta.cs (+ enum EstadoVenta), DetalleVenta.cs
 │   ├── Compra.cs (+ enum EstadoCompra), DetalleCompra.cs
 │   ├── CarritoItem.cs             Ítem del carrito (en sesión)
-│   └── *ViewModel.cs              Formularios (login, registro, perfil, checkout, venta, compra, empleado)
+│   ├── *ViewModel.cs              Formularios (login, registro, perfil, checkout, venta, compra, empleado)
+│   └── Reporte*ViewModel.cs, ResumenFila.cs   Datos que muestra cada reporte
 ├── Data/
 │   ├── ApplicationDbContext.cs    Único DbContext (Identity + tablas de la ferretería)
 │   └── DbInitializer.cs           Seed: roles, admin, vendedor, formas de pago, categorías, proveedores, productos, inventario
 ├── Helpers/
-│   ├── Formato.cs                 Precios, fechas y colores de estado
+│   ├── Formato.cs                 Precios, fechas (UTC ↔ hora local) y colores de estado
+│   ├── Csv.cs                     Genera los archivos CSV de los reportes
 │   ├── CarritoSesion.cs           Leer/guardar el carrito en la sesión
 │   ├── UsuarioExtensions.cs       Id numérico del usuario logueado, EsPersonal()
 │   └── SpanishIdentityErrorDescriber.cs   Mensajes de Identity en español
 ├── Migrations/                    Migraciones de EF Core (ya generadas)
-├── Views/                         Vistas Razor (Home, Account, Productos, Categorias, Proveedores, FormasPago, Carrito, Ventas, Compras, Inventario, Admin, Shared)
+├── Views/                         Vistas Razor (Home, Account, Productos, Categorias, Proveedores, FormasPago, Carrito, Ventas, Compras, Inventario, Admin, Reportes, Shared)
 ├── wwwroot/
 │   ├── css/site.css               Estilos propios
 │   └── images/productos/          Imágenes de los productos

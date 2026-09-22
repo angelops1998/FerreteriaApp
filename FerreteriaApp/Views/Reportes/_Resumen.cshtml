@@ -1,0 +1,40 @@
+@model List<ResumenFila>
+@* Tabla chica de desglose: nombre, cantidad y total. Los títulos vienen por ViewData. *@
+<div class="card shadow-sm h-100">
+    <div class="card-header bg-white"><i class="bi @ViewData["Icono"]"></i> @ViewData["Titulo"]</div>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>@ViewData["Columna"]</th>
+                    <th class="text-center">@ViewData["ColCantidad"]</th>
+                    <th class="text-end">@(ViewData["ColTotal"] ?? "Total")</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var f in Model)
+                {
+                    <tr>
+                        <td>@f.Nombre</td>
+                        <td class="text-center">@f.Cantidad</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(f.Total)</td>
+                    </tr>
+                }
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="3" class="text-center text-muted py-3">Sin datos en este período.</td></tr>
+                }
+            </tbody>
+            @if (Model.Count > 1)
+            {
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td>Total</td>
+                        <td class="text-center">@Model.Sum(f => f.Cantidad)</td>
+                        <td class="text-end text-nowrap">@Formato.Precio(Model.Sum(f => f.Total))</td>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+</div>

@@ -1,0 +1,21 @@
+@{
+    // Atajos de fecha (en hora local de la tienda). Mantienen la acción actual y no tocan los otros filtros.
+    var hoy = Formato.ALocal(DateTime.UtcNow).Date;
+    var lunes = hoy.AddDays(-(((int)hoy.DayOfWeek + 6) % 7));
+    var accion = (string)ViewContext.RouteData.Values["action"]!;
+    var otros = Context.Request.Query.Where(q => !new[] { "desde", "hasta", "formato" }.Contains(q.Key, StringComparer.OrdinalIgnoreCase))
+        .ToDictionary(q => q.Key, q => (string?)q.Value.ToString());
+
+    Dictionary<string, string?> Rango(DateTime desde, DateTime hasta)
+    {
+        var d = new Dictionary<string, string?>(otros) { ["desde"] = desde.ToString("yyyy-MM-dd"), ["hasta"] = hasta.ToString("yyyy-MM-dd") };
+        return d;
+    }
+}
+<div class="btn-group btn-group-sm d-print-none" role="group" aria-label="Rangos rápidos">
+    <a asp-action="@accion" asp-all-route-data="@Rango(hoy, hoy)" class="btn btn-outline-secondary">Hoy</a>
+    <a asp-action="@accion" asp-all-route-data="@Rango(lunes, hoy)" class="btn btn-outline-secondary">Esta semana</a>
+    <a asp-action="@accion" asp-all-route-data="@Rango(new DateTime(hoy.Year, hoy.Month, 1), hoy)" class="btn btn-outline-secondary">Este mes</a>
+    <a asp-action="@accion" asp-all-route-data="@Rango(new DateTime(hoy.Year, 1, 1), hoy)" class="btn btn-outline-secondary">Este año</a>
+    <a asp-action="@accion" asp-all-route-data="@Rango(new DateTime(2000, 1, 1), hoy)" class="btn btn-outline-secondary">Todo</a>
+</div>

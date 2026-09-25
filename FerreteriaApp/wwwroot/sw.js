@@ -3,7 +3,7 @@
 // - Páginas: siempre se piden al servidor (tienen datos del usuario, precios y stock al día);
 //   si no hay conexión se muestra la página offline.html.
 // Al cambiar algo de este archivo, subir la versión para que los celulares tomen la nueva.
-const VERSION = 'ferreteria-v1';
+const VERSION = 'ferreteria-v2';
 
 const PRECARGA = [
     '/offline.html',

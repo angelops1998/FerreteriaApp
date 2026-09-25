@@ -158,6 +158,16 @@
         </div>
     </footer>
 
+    @* Asistente por voz: botón flotante para navegar diciendo "mostrame el carrito", "abrí reportes", etc.
+       Se muestra solo si el navegador soporta reconocimiento de voz (lo decide site.js) *@
+    <div id="asistenteVoz" class="asistente-voz d-none" data-personal="@(esPersonal ? "1" : "0")" data-cliente="@(esCliente ? "1" : "0")">
+        <div class="asistente-voz-globo d-none" id="asistenteVozGlobo"></div>
+        <button type="button" class="btn btn-warning rounded-circle shadow asistente-voz-btn" id="asistenteVozBtn"
+                title="Asistente por voz" aria-label="Asistente por voz">
+            <i class="bi bi-mic-fill fs-4"></i>
+        </button>
+    </div>
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>

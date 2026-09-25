@@ -21,6 +21,15 @@ detalle y forma de pago, y compras a proveedores con detalle.
 - **Búsqueda por voz** (botón de micrófono junto a cada buscador) con la Web Speech API. Funciona en
   Chrome y Edge (usan el reconocimiento de voz de Google/Microsoft); requiere permitir el micrófono y
   que el sitio esté en `https` o `localhost`. En navegadores sin soporte (Firefox) el botón no aparece.
+- **Asistente por voz**: botón flotante con micrófono abajo a la derecha (en todas las páginas). Se
+  presiona y se dice una orden, por ejemplo:
+  - "mostrame el carrito", "abrí el catálogo", "ir al inicio", "mis compras", "mi perfil"
+  - "buscá martillos" o "mostrame taladros" (busca en el catálogo)
+  - "agregalo al carrito" (estando en el detalle de un producto)
+  - "volver", "bajar", "subir"
+  - Empleados/Admin: "reportes", "inventario", "ventas", "registrar venta", "compras", "panel"
+
+  Responde en voz alta y con un globito de texto. Usa la misma Web Speech API que la búsqueda por voz.
 - Detalle de producto con productos relacionados.
 - **App instalable (PWA)**: se puede agregar a la pantalla de inicio del celular (o instalar en la
   PC) sin pasar por la Play Store; se abre a pantalla completa, sin la barra del navegador, con su
@@ -128,7 +137,7 @@ FerreteriaApp/
 ├── wwwroot/
 │   ├── css/site.css               Estilos propios (incluye los estilos de impresión de los reportes)
 │   ├── js/reportes.js             Gráficos de los reportes (Chart.js) e impresión a PDF
-│   ├── js/site.js                 Búsqueda por voz (Web Speech API) y botón "Instalar app" (PWA)
+│   ├── js/site.js                 Búsqueda por voz, asistente por voz (Web Speech API) y botón "Instalar app" (PWA)
 │   ├── sw.js                      Service worker de la PWA (caché de archivos y página sin conexión)
 │   ├── offline.html               Página que se muestra si se abre la app sin internet
 │   ├── icons/                     Íconos de la app instalada (192, 512, maskable y Apple)

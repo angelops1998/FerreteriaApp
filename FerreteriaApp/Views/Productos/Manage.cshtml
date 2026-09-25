@@ -9,6 +9,7 @@
     <div class="d-flex gap-2">
         <form asp-action="Manage" method="get" class="d-flex">
             <input type="search" name="buscar" class="form-control form-control-sm me-2" placeholder="Buscar..." value="@buscar" />
+            <button class="btn btn-sm btn-outline-secondary me-2 btn-voz d-none" type="button" title="Buscar por voz"><i class="bi bi-mic"></i></button>
             <button class="btn btn-sm btn-outline-dark" type="submit"><i class="bi bi-search"></i></button>
         </form>
         <a asp-action="Create" class="btn btn-sm btn-warning"><i class="bi bi-plus-lg"></i> Nuevo producto</a>

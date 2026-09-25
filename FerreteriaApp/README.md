@@ -18,6 +18,9 @@ detalle y forma de pago, y compras a proveedores con detalle.
 ### Público (sin iniciar sesión)
 - Página de inicio con categorías y productos destacados.
 - Catálogo con **búsqueda**, **filtro por categoría** y **paginación**.
+- **Búsqueda por voz** (botón de micrófono junto a cada buscador) con la Web Speech API. Funciona en
+  Chrome y Edge (usan el reconocimiento de voz de Google/Microsoft); requiere permitir el micrófono y
+  que el sitio esté en `https` o `localhost`. En navegadores sin soporte (Firefox) el botón no aparece.
 - Detalle de producto con productos relacionados.
 - **Carrito** (se guarda en la sesión; no hace falta cuenta para armarlo).
 - Registro (crea un **Cliente**) e inicio de sesión.
@@ -122,6 +125,7 @@ FerreteriaApp/
 ├── wwwroot/
 │   ├── css/site.css               Estilos propios (incluye los estilos de impresión de los reportes)
 │   ├── js/reportes.js             Gráficos de los reportes (Chart.js) e impresión a PDF
+│   ├── js/site.js                 Búsqueda por voz (Web Speech API)
 │   ├── lib/chart.js/              Chart.js (librería de gráficos)
 │   └── images/productos/          Imágenes de los productos
 ├── appsettings.json               Configuración (connection string, nombre de la tienda, admin)

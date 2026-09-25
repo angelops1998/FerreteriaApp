@@ -22,6 +22,9 @@ detalle y forma de pago, y compras a proveedores con detalle.
   Chrome y Edge (usan el reconocimiento de voz de Google/Microsoft); requiere permitir el micrófono y
   que el sitio esté en `https` o `localhost`. En navegadores sin soporte (Firefox) el botón no aparece.
 - Detalle de producto con productos relacionados.
+- **App instalable (PWA)**: se puede agregar a la pantalla de inicio del celular (o instalar en la
+  PC) sin pasar por la Play Store; se abre a pantalla completa, sin la barra del navegador, con su
+  propio ícono. Ver sección 8.4.
 - **Carrito** (se guarda en la sesión; no hace falta cuenta para armarlo).
 - Registro (crea un **Cliente**) e inicio de sesión.
 
@@ -89,7 +92,7 @@ La primera vez que arranca, la app crea sola los roles, el administrador, un ven
 ```
 FerreteriaApp/
 ├── Controllers/
-│   ├── HomeController.cs          Inicio y página de error
+│   ├── HomeController.cs          Inicio, página de error y manifest de la PWA (/manifest.webmanifest)
 │   ├── AccountController.cs       Login, registro (Cliente), logout, perfil, cambiar contraseña
 │   ├── ProductosController.cs     Catálogo público + CRUD de productos (personal)
 │   ├── CategoriasController.cs    CRUD de categorías (Admin)
@@ -125,7 +128,10 @@ FerreteriaApp/
 ├── wwwroot/
 │   ├── css/site.css               Estilos propios (incluye los estilos de impresión de los reportes)
 │   ├── js/reportes.js             Gráficos de los reportes (Chart.js) e impresión a PDF
-│   ├── js/site.js                 Búsqueda por voz (Web Speech API)
+│   ├── js/site.js                 Búsqueda por voz (Web Speech API) y botón "Instalar app" (PWA)
+│   ├── sw.js                      Service worker de la PWA (caché de archivos y página sin conexión)
+│   ├── offline.html               Página que se muestra si se abre la app sin internet
+│   ├── icons/                     Íconos de la app instalada (192, 512, maskable y Apple)
 │   ├── lib/chart.js/              Chart.js (librería de gráficos)
 │   └── images/productos/          Imágenes de los productos
 ├── appsettings.json               Configuración (connection string, nombre de la tienda, admin)
@@ -311,6 +317,29 @@ Cada `git push` a `main` vuelve a desplegar automáticamente.
   nuevo deploy. Las 43 imágenes iniciales sí persisten porque están en el repositorio. Para que las
   imágenes nuevas persistan, se puede pegar la **URL de una imagen** (campo *URL de imagen*) en lugar
   de subir el archivo, por ejemplo una imagen alojada en Supabase Storage.
+
+### 8.4 Instalar la app en el celular (PWA)
+
+La app es una **PWA** (*Progressive Web App*): el navegador la puede "instalar" como si fuera una
+aplicación, sin Play Store ni App Store. Requiere que el sitio esté en **https** (Render ya lo da) o
+en `localhost`.
+
+- **Android (Chrome / Edge):** abrir la página → aparece el botón **Instalar app** en la barra (o el
+  menú ⋮ → *Instalar aplicación* / *Agregar a pantalla de inicio*).
+- **iPhone / iPad (Safari):** botón **Compartir** → *Agregar a pantalla de inicio*. El botón
+  *Instalar app* de la barra muestra estas instrucciones.
+- **PC (Chrome / Edge):** botón **Instalar app** o el ícono de instalar en la barra de direcciones.
+
+Cómo funciona:
+- `/manifest.webmanifest` (acción `Manifest` de `HomeController`): nombre de la app (sale de
+  `Tienda:Nombre`), íconos, colores y `display: standalone` (se abre sin la barra del navegador).
+  Al mantener apretado el ícono aparecen accesos directos a *Catálogo* y *Carrito*.
+- `wwwroot/sw.js` (service worker): guarda en caché los archivos estáticos (css, js, imágenes) para
+  que abra más rápido. Las páginas **siempre** se piden al servidor (así los precios, el stock y el
+  carrito están al día); si no hay internet se muestra `offline.html`.
+- Si se modifica `sw.js`, cambiar la constante `VERSION` (ej. `ferreteria-v2`) para que los celulares
+  descarguen la versión nueva y borren la caché vieja.
+- Para cambiar el ícono, reemplazar los PNG de `wwwroot/icons/` manteniendo los mismos tamaños.
 
 ---
 

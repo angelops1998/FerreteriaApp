@@ -15,6 +15,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - @nombreTienda</title>
+    @* PWA: permite agregar la app a la pantalla de inicio del celular *@
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#212529" />
+    <link rel="icon" type="image/png" sizes="192x192" href="~/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="~/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="@nombreTienda" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -80,6 +89,12 @@
                     </form>
 
                     <ul class="navbar-nav align-items-lg-center">
+                        @* Se muestra solo si el navegador permite instalar la app (lo decide site.js) *@
+                        <li class="nav-item d-none" id="itemInstalar">
+                            <button type="button" class="btn btn-outline-warning btn-sm me-lg-2 my-1 my-lg-0" id="btnInstalar">
+                                <i class="bi bi-download"></i> Instalar app
+                            </button>
+                        </li>
                         @if (!esPersonal)
                         {
                             <li class="nav-item">
